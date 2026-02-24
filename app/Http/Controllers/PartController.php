@@ -13,8 +13,11 @@ class PartController extends Controller
     /** Index */
     public function index()
     {
-        $parts = Part::orderBy('part_no_child')->get();
-        return view('parts.index', compact('parts'));
+        $parts    = Part::orderBy('part_no_child')->get();
+        $lines     = Part::distinct()->whereNotNull('line')->orderBy('line')->pluck('line');
+        $categories = Part::distinct()->whereNotNull('category')->orderBy('category')->pluck('category');
+
+        return view('parts.index', compact('parts', 'lines', 'categories'));
     }
 
     /** Store */
@@ -78,10 +81,21 @@ class PartController extends Controller
             $import = new PartsImport();
             Excel::import($import, $request->file('file'));
 
-            $count = $import->getImportedCount();
+            $count   = $import->getImportedCount();
+            $skipped = $import->getSkippedCount();
+
+            $message = "Import berhasil! {$count} data diimpor.";
+            if ($skipped > 0) {
+                $message .= " {$skipped} data dilewati karena duplikat.";
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => "Import berhasil! {$count} data parts berhasil diimpor.",
+                'message' => $message,
+                'data'    => [
+                    'imported' => $count,
+                    'skipped'  => $skipped,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Import gagal: ' . $e->getMessage()], 500);

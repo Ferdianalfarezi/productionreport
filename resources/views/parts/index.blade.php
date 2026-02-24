@@ -39,16 +39,43 @@
     <!-- Filter Bar -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div class="flex flex-col md:flex-row md:items-center gap-3">
+            <!-- Search -->
             <div class="flex-1 relative">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                 </div>
-                <input type="text" id="searchInput" onkeyup="searchTable()"
+                <input type="text" id="searchInput" onkeyup="applyFilters()"
                     class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-gray-900 text-sm transition"
                     placeholder="Cari part no, line, atau category...">
             </div>
+
+            <!-- Filter Line -->
+            <select id="filterLine" onchange="applyFilters()"
+                class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition min-w-[150px]">
+                <option value="">Semua Line</option>
+                @foreach($lines as $line)
+                    <option value="{{ strtolower($line) }}">{{ $line }}</option>
+                @endforeach
+            </select>
+
+            <!-- Filter Category -->
+            <select id="filterCategory" onchange="applyFilters()"
+                class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition min-w-[150px]">
+                <option value="">Semua Category</option>
+                @foreach($categories as $cat)
+                    <option value="{{ strtolower($cat) }}">{{ $cat }}</option>
+                @endforeach
+            </select>
+
+            <!-- Reset -->
+            <button onclick="resetFilters()"
+                class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">
+                Reset Filter
+            </button>
+
+            <!-- Per Page -->
             <select id="perPageSelect" onchange="changePerPage()"
                 class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition">
                 <option value="20">20 per halaman</option>
@@ -78,7 +105,9 @@
                 <tbody class="divide-y divide-gray-100" id="partTableBody">
                     @forelse($parts as $part)
                         <tr class="hover:bg-gray-50 transition part-row"
-                            data-search="{{ strtolower($part->part_no_child . ' ' . $part->line . ' ' . $part->category) }}">
+                            data-search="{{ strtolower($part->part_no_child . ' ' . $part->line . ' ' . $part->category) }}"
+                            data-line="{{ strtolower($part->line ?? '') }}"
+                            data-category="{{ strtolower($part->category ?? '') }}">
                             <td class="px-6 py-4 text-sm text-gray-600">{{ $loop->iteration }}</td>
                             <td class="px-6 py-4">
                                 <p class="font-semibold text-gray-900 text-sm">{{ $part->part_no_child ?? '-' }}</p>
@@ -175,10 +204,28 @@ document.addEventListener('DOMContentLoaded', function () {
     renderTable();
 });
 
-function searchTable() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    filteredRows = q ? allRows.filter(r => r.dataset.search.includes(q)) : [...allRows];
+function applyFilters() {
+    const q         = document.getElementById('searchInput').value.toLowerCase().trim();
+    const fLine     = document.getElementById('filterLine').value;
+    const fCategory = document.getElementById('filterCategory').value;
+
+    filteredRows = allRows.filter(r => {
+        const matchSearch   = !q         || r.dataset.search.includes(q);
+        const matchLine     = !fLine     || r.dataset.line === fLine;
+        const matchCategory = !fCategory || r.dataset.category === fCategory;
+        return matchSearch && matchLine && matchCategory;
+    });
+
     currentPage = 1;
+    renderTable();
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value    = '';
+    document.getElementById('filterLine').value     = '';
+    document.getElementById('filterCategory').value = '';
+    filteredRows = [...allRows];
+    currentPage  = 1;
     renderTable();
 }
 

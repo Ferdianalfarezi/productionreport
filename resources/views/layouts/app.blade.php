@@ -366,6 +366,18 @@
                 <span class="nav-tooltip">Parts</span>
             </div>
 
+            <div class="nav-item-wrap">
+                <a href="{{ route('line-configs.index') }}"
+                   class="nav-item {{ request()->routeIs('parts.*') ? 'active' : '' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14.7 6.3a4 4 0 01-5.4 5.4l-4.6 4.6a2 2 0 102.8 2.8l4.6-4.6a4 4 0 005.4-5.4l-2.1 2.1-1.4-1.4 2.1-2.1z"/>
+                        </svg>
+                    <span class="nav-label">Line Config</span>
+                </a>
+                <span class="nav-tooltip">Line Config</span>
+            </div>
+
             <p class="nav-section">Management</p>
 
             <div class="nav-item-wrap">

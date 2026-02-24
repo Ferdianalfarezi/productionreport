@@ -10,13 +10,16 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 class PartsImport implements ToCollection, WithHeadingRow
 {
     private int $imported = 0;
+    private int $skipped  = 0;
 
     /**
-     * Kolom yang diambil dari Excel:
-     *   F = PART_NO_CHILD (index heading: part_no_child)
-     *   I = LINE          (index heading: line)
-     *   L = QTY_KBN       (index heading: qty_kbn)
+     * Baris ke-2 adalah header (baris 1 = judul "E-Planning Production")
      */
+    public function headingRow(): int
+    {
+        return 2;
+    }
+
     public function collection(Collection $rows)
     {
         foreach ($rows as $row) {
@@ -26,6 +29,12 @@ class PartsImport implements ToCollection, WithHeadingRow
 
             // Skip baris kosong
             if ($partNoChild === '' && $line === '' && $qtyKbn === null) {
+                continue;
+            }
+
+            // Skip jika part_no_child sudah ada di database
+            if ($partNoChild !== '' && Part::where('part_no_child', $partNoChild)->exists()) {
+                $this->skipped++;
                 continue;
             }
 
@@ -43,5 +52,10 @@ class PartsImport implements ToCollection, WithHeadingRow
     public function getImportedCount(): int
     {
         return $this->imported;
+    }
+
+    public function getSkippedCount(): int
+    {
+        return $this->skipped;
     }
 }

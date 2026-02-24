@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MesinController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PartController;
+use App\Http\Controllers\LineConfigController;
 
 // Auth
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
@@ -45,5 +46,15 @@ Route::middleware('auth.check')->group(function () {
         Route::delete('/{part}',   [PartController::class, 'destroy'])->name('destroy');
         Route::post('/import',     [PartController::class, 'import'])->name('import');
         Route::post('/import-cavity',  [PartController::class, 'importCavity'])->name('import.cavity');
+    });
+
+    Route::prefix('line-configs')->name('line-configs.')->group(function () {
+        Route::get('/',                 [LineConfigController::class, 'index'])->name('index');
+        Route::post('/',                [LineConfigController::class, 'store'])->name('store');
+        Route::post('/import',          [LineConfigController::class, 'import'])->name('import');
+        Route::post('/destroy-line',    [LineConfigController::class, 'destroyLine'])->name('destroyLine');
+        Route::get('/{lineConfig}/edit',[LineConfigController::class, 'edit'])->name('edit');
+        Route::put('/{lineConfig}',     [LineConfigController::class, 'update'])->name('update');
+        Route::delete('/{lineConfig}',  [LineConfigController::class, 'destroy'])->name('destroy');
     });
 });

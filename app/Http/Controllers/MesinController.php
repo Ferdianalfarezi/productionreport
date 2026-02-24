@@ -17,7 +17,11 @@ class MesinController extends Controller
             ->orderBy('line_machine')
             ->get();
 
-        return view('mesin.index', compact('groups'));
+        // Untuk dropdown filter
+        $lineMachines = Mesin::distinct()->orderBy('line_machine')->pluck('line_machine');
+        $lines        = Mesin::distinct()->whereNotNull('line')->orderBy('line')->pluck('line');
+
+        return view('mesin.index', compact('groups', 'lineMachines', 'lines'));
     }
 
     public function store(Request $request)
