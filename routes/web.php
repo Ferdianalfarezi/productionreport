@@ -7,6 +7,7 @@ use App\Http\Controllers\MesinController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PartController;
 use App\Http\Controllers\LineConfigController;
+use App\Http\Controllers\ReportProduksiController;
 
 // Auth
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
@@ -57,4 +58,8 @@ Route::middleware('auth.check')->group(function () {
         Route::put('/{lineConfig}',     [LineConfigController::class, 'update'])->name('update');
         Route::delete('/{lineConfig}',  [LineConfigController::class, 'destroy'])->name('destroy');
     });
+
+    Route::get('/report-produksi', [ReportProduksiController::class, 'index'])
+    ->name('report-produksi.index');
+
 });

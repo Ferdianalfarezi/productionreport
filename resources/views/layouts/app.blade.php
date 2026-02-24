@@ -8,7 +8,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+    @stack('styles')
     <style>
         [x-cloak] { display: none !important; }
 
@@ -368,14 +368,28 @@
 
             <div class="nav-item-wrap">
                 <a href="{{ route('line-configs.index') }}"
-                   class="nav-item {{ request()->routeIs('parts.*') ? 'active' : '' }}">
+                   class="nav-item {{ request()->routeIs('line-configs.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M14.7 6.3a4 4 0 01-5.4 5.4l-4.6 4.6a2 2 0 102.8 2.8l4.6-4.6a4 4 0 005.4-5.4l-2.1 2.1-1.4-1.4 2.1-2.1z"/>
-                        </svg>
+                            d="M4 6h16M4 12h16M4 18h16M8 6v4M16 12v4M12 18v4"/>
+                    </svg>
                     <span class="nav-label">Line Config</span>
                 </a>
                 <span class="nav-tooltip">Line Config</span>
+            </div>
+
+            <div class="nav-item-wrap">
+                <a href="{{ route('report-produksi.index') }}"
+                   class="nav-item {{ request()->routeIs('report-produksi.*') ? 'active' : '' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14 3v5h5M9 13h6M9 17h6"/>
+                    </svg>
+                    <span class="nav-label">Report Produksi</span>
+                </a>
+                <span class="nav-tooltip">Report Produksi</span>
             </div>
 
             <p class="nav-section">Management</p>
