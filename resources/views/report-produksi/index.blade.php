@@ -55,6 +55,11 @@
     td.c-yellow { background: #FFFF00 !important; font-weight: 700; color: #333; }
     td.c-white  { background: #fff !important; }
 
+    /* Total row */
+    .tr-total td { background: #E3F2FD !important; font-weight: 700; color: #0d47a1; border-top: 2px solid #1565C0; }
+    .tr-total td.c-green  { background: #A5D6A7 !important; color: #1b5e20; }
+    .tr-total td.c-yellow { background: #FFFF00 !important; color: #333; }
+
     .empty-state { padding: 60px; text-align: center; color: #999; font-size: 13px; }
 </style>
 @endpush
@@ -85,7 +90,6 @@
     @if($selectedMesin)
     <div class="report-card">
         <div class="table-wrapper">
-
         <table class="report-table">
             <thead>
                 {{-- ══ ROW 1 ══ --}}
@@ -99,21 +103,19 @@
                     <th colspan="2" class="th-blue">GSPH</th>
                     <th colspan="2" class="th-blue">Working Time</th>
                     <th colspan="7" class="bg-w" style="font-size:18px;font-weight:800;letter-spacing:1px;">DETAIL REPORT PRODUKSI</th>
-                    {{-- DANDORI DAN CAVITY: rowspan=3 menempati row1, row2, row3 --}}
                     <th colspan="2" class="th-yellow-hdr" style="font-size:10.5px;line-height:1.4;" rowspan="3">DANDORI<br>DAN CAVITY</th>
                 </tr>
 
                 {{-- ══ ROW 2 ══ --}}
                 <tr>
                     <th class="bg-w" colspan="3" style="font-weight:700;">Machine</th>
-                    <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
-                    <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
-                    <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
-                    <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
-                    <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
+                    <th class="th-light-blue">Plan</th><th class="th-light-green">Actual</th>
+                    <th class="th-light-blue">Plan</th><th class="th-light-green">Actual</th>
+                    <th class="th-light-blue">Plan</th><th class="th-light-green">Actual</th>
+                    <th class="th-light-blue">Plan</th><th class="th-light-green">Actual</th>
+                    <th class="th-light-blue">Plan</th><th class="th-light-green">Actual</th>
                     <th colspan="4" class="th-light-green" rowspan="2" style="vertical-align:middle;">Shift 1</th>
                     <th colspan="3" class="th-light-green" rowspan="2" style="vertical-align:middle;">Shift 2</th>
-                    {{-- kolom DANDORI sudah di-rowspan dari row1, tidak perlu tambah cell di sini --}}
                 </tr>
 
                 {{-- ══ ROW 3 ══ --}}
@@ -129,8 +131,6 @@
                     <td class="bg-w" style="font-weight:700;">{{ $summaryData['gsph_actual']    ?? '' }}</td>
                     <td class="bg-w" style="font-weight:700;">{{ $summaryData['wt_plan']        ?? '' }}</td>
                     <td class="bg-w" style="font-weight:700;">{{ $summaryData['wt_actual']      ?? '' }}</td>
-                    {{-- Shift 1 & 2 sudah di-rowspan dari row2 --}}
-                    {{-- DANDORI sudah di-rowspan dari row1 --}}
                 </tr>
 
                 {{-- ══ ROW 4 ══ --}}
@@ -155,19 +155,26 @@
                 </tr>
             </thead>
             <tbody>
-                @php $totalRows = max($parts->count(), 30); @endphp
-                @for($i = 0; $i < $totalRows; $i++)
-                    @php
-                        $part = $parts->get($i);
+                @php
+                    /* ── Akumulator untuk baris Total ── */
+                    $totBoxPlan      = 0; $totBoxActual    = 0;
+                    $totStrokePlan   = 0; $totStrokeActual = 0;
+                    $totDandoriPlan  = 0; $totDandoriActual= 0;
+                    $totGsphPlan     = 0;
+                    $totWtPlan       = 0; $totWtActualMin  = 0;
+                    $totShift1Qty    = 0; $totShift2Qty    = 0;
+                    $totDShift1      = 0; $totDShift2      = 0;
+                    $totShoot        = 0;
+                @endphp
 
+                @foreach($parts as $i => $part)
+                    @php
                         /* ─── Plan ─── */
                         $plan = null;
-                        if ($part && $stockMap->has($part->part_no_child)) {
+                        if ($stockMap->has($part->part_no_child)) {
                             $calcProd = (int) $stockMap[$part->part_no_child]->calc_prod;
                             $plan     = $calcProd * (int) $part->qty_kbn;
-
                             $category = strtolower(trim($part->category ?? ''));
-
                             if ($category === 'shoot' && $part->qty_category > 0) {
                                 $plan = $plan * (int) $part->qty_category;
                             } elseif ($category === 'cavity' && $part->qty_category > 0) {
@@ -180,7 +187,7 @@
 
                         /* ─── GSPH ─── */
                         $gsph = null;
-                        if ($part && $stockMap->has($part->part_no_child)) {
+                        if ($stockMap->has($part->part_no_child)) {
                             $ltProd = (float) ($stockMap[$part->part_no_child]->lt_prod ?? 0);
                             $qtyKbn = (float) ($stockMap[$part->part_no_child]->qty_kbn ?? 0);
                             $qtyCat = (float) ($part->qty_category ?? 0);
@@ -191,21 +198,14 @@
 
                         /* ─── Working Time ─── */
                         $wt = ($plan !== null && $gsph !== null && $gsph > 0)
-                            ? round($plan / $gsph, 2)
-                            : null;
+                            ? round($plan / $gsph, 2) : null;
 
-                        /* ─── Actual dari reportMap ─── */
-                        $actualShift1 = null;
-                        $startShift1  = null;
-                        $finishShift1 = null;
+                        /* ─── Actual ─── */
+                        $actualShift1 = null; $startShift1 = null; $finishShift1 = null;
+                        $actualShift2 = null; $startShift2 = null; $finishShift2 = null;
 
-                        $actualShift2 = null;
-                        $startShift2  = null;
-                        $finishShift2 = null;
-
-                        if ($part && $stockMap->has($part->part_no_child)) {
+                        if ($stockMap->has($part->part_no_child)) {
                             $kbnForActual = (int) ($stockMap[$part->part_no_child]->qty_kbn ?? 0);
-
                             $dataS1 = $reportMap[$part->part_no_child][1] ?? null;
                             $dataS2 = $reportMap[$part->part_no_child][2] ?? null;
 
@@ -221,59 +221,132 @@
                             }
                         }
 
-                        /* ─── Warna actual ─── */
+                        /* ─── Total Actual ─── */
+                        $actualTotal = null;
+                        if ($actualShift1 !== null || $actualShift2 !== null) {
+                            $actualTotal = round(($actualShift1 ?? 0) + ($actualShift2 ?? 0), 2);
+                        }
+
+                        /* ─── Stroke Actual ─── */
+                        $strokeActual = null;
+                        if ($actualTotal !== null && $stockMap->has($part->part_no_child)) {
+                            $qtyKbnForStroke = (int) ($stockMap[$part->part_no_child]->qty_kbn ?? 0);
+                            if ($qtyKbnForStroke > 0) {
+                                $strokeActual = round($actualTotal * $qtyKbnForStroke, 2);
+                            }
+                        }
+
+                        /* ─── Dandori Actual ─── */
+                        $dandoriActual = ($finishShift1 ? 1 : 0) + ($finishShift2 ? 1 : 0);
+
+                        /* ─── WT Actual ─── */
+                        $wtActual = null;
+                        $calcDiff = function($start, $finish) {
+                            if (!$start || !$finish) return 0;
+                            try {
+                                [$sh, $sm] = array_map('intval', explode(':', $start));
+                                [$fh, $fm] = array_map('intval', explode(':', $finish));
+                                $diff = ($fh * 60 + $fm) - ($sh * 60 + $sm);
+                                return $diff > 0 ? $diff : 0;
+                            } catch (\Throwable $e) { return 0; }
+                        };
+                        $diff1 = $calcDiff($startShift1, $finishShift1);
+                        $diff2 = $calcDiff($startShift2, $finishShift2);
+                        $totalMinutes = $diff1 + $diff2;
+                        if ($totalMinutes > 0) {
+                            $wtActual = round($totalMinutes / 60, 2);
+                        }
+
+                        /* ─── GSPH Actual ─── */
+                        $gsphActual = null;
+                        if ($strokeActual !== null && $wtActual !== null && $wtActual > 0) {
+                            $gsphActual = round($strokeActual / $wtActual, 2);
+                        }
+
+                        /* ─── Warna ─── */
                         $classA1 = $actualShift1 !== null
-                            ? ($plan !== null && $actualShift1 >= $plan ? 'c-green' : 'c-yellow')
-                            : 'c-white';
+                            ? ($plan !== null && $actualShift1 >= $plan ? 'c-green' : 'c-yellow') : 'c-white';
                         $classA2 = $actualShift2 !== null
-                            ? ($plan !== null && $actualShift2 >= $plan ? 'c-green' : 'c-yellow')
-                            : 'c-white';
+                            ? ($plan !== null && $actualShift2 >= $plan ? 'c-green' : 'c-yellow') : 'c-white';
+
+                        /* ─── Akumulasi Total ─── */
+                        if ($stockMap->has($part->part_no_child)) {
+                            $totBoxPlan      += (int) $stockMap[$part->part_no_child]->calc_prod;
+                        }
+                        $totBoxActual    += $actualTotal    ?? 0;
+                        $totStrokePlan   += $plan           ?? 0;
+                        $totStrokeActual += $strokeActual   ?? 0;
+                        $totDandoriPlan  += $dandori        ?? 0;
+                        $totDandoriActual+= $dandoriActual;
+                        $totGsphPlan     += $gsph           ?? 0;
+                        $totWtPlan       += $wt             ?? 0;
+                        $totWtActualMin  += $totalMinutes;
+                        $totShift1Qty    += $actualShift1   ?? 0;
+                        $totShift2Qty    += $actualShift2   ?? 0;
+                        $totDShift1      += ($finishShift1 ? 1 : 0);
+                        $totDShift2      += ($finishShift2 ? 1 : 0);
+                        $totShoot        += 1;
                     @endphp
 
-                    <tr class="{{ $part ? 'row-data' : '' }}">
-                        {{-- [0] No --}}
-                        <td class="col-no">{{ $i + 1 }}</td>
-                        {{-- [1] Part No --}}
-                        <td class="col-part">{{ $part ? $part->part_no_child : '' }}</td>
-                        {{-- [2] Stock NP --}}
-                        <td>{{ $part && $stockMap->has($part->part_no_child) ? $stockMap[$part->part_no_child]->stock_store : '' }}</td>
-
-                        {{-- [3][4] BOX Plan / Actual --}}
-                        <td>{{ $part && $stockMap->has($part->part_no_child) ? (int) $stockMap[$part->part_no_child]->calc_prod : '' }}</td>
-                        <td></td>
-
-                        {{-- [5][6] Stroke Plan / Actual --}}
+                    <tr class="row-data">
+                        <td class="col-no">{{ $loop->iteration }}</td>
+                        <td class="col-part">{{ $part->part_no_child }}</td>
+                        <td>{{ $stockMap->has($part->part_no_child) ? $stockMap[$part->part_no_child]->stock_store : '' }}</td>
+                        <td>{{ $stockMap->has($part->part_no_child) ? (int) $stockMap[$part->part_no_child]->calc_prod : '' }}</td>
+                        <td>{{ $actualTotal ?? '' }}</td>
                         <td>{{ $plan ?? '' }}</td>
-                        <td></td>
-
-                        {{-- [7][8] Dandori Plan / Actual --}}
+                        <td>{{ $strokeActual ?? '' }}</td>
                         <td>{{ $dandori ?? '' }}</td>
-                        <td></td>
-
-                        {{-- [9][10] GSPH Plan / Actual --}}
+                        <td>{{ $dandoriActual }}</td>
                         <td>{{ $gsph ?? '' }}</td>
-                        <td></td>
-
-                        {{-- [11][12] Working Time Plan / Actual --}}
+                        <td>{{ $gsphActual ?? '' }}</td>
                         <td>{{ $wt ?? '' }}</td>
-                        <td></td>
-
-                        {{-- [13][14][15][16] Shift 1 : Qty, Start, Finish, D --}}
+                        <td>{{ $wtActual ?? '' }}</td>
                         <td class="{{ $classA1 }}">{{ $actualShift1 !== null ? $actualShift1 : '' }}</td>
                         <td class="c-white">{{ $startShift1 ?? '' }}</td>
                         <td class="c-white">{{ $finishShift1 ?? '' }}</td>
-                        <td class="c-green">{{ $part ? '1' : '' }}</td>
-
-                        {{-- [17][18][19] Shift 2 : Qty, Start, Finish --}}
+                        <td class="c-green">{{ $finishShift1 ? '1' : '0' }}</td>
                         <td class="{{ $classA2 }}">{{ $actualShift2 !== null ? $actualShift2 : '' }}</td>
                         <td class="c-white">{{ $startShift2 ?? '' }}</td>
                         <td class="c-white">{{ $finishShift2 ?? '' }}</td>
-
-                        {{-- [20][21] DANDORI DAN CAVITY : D, Shoot --}}
-                        <td class="c-green">{{ $part ? '0' : '' }}</td>
-                        <td class="c-yellow">{{ $part ? '1' : '' }}</td>
+                        <td class="c-green">{{ $finishShift2 ? '1' : '0' }}</td>
+                        <td class="c-yellow">1</td>
                     </tr>
-                @endfor
+                @endforeach
+
+                {{-- ══ BARIS TOTAL ══ --}}
+                @php
+                    $totWtActualHours  = $totWtActualMin > 0 ? round($totWtActualMin / 60, 2) : null;
+                    $totGsphActual     = ($totStrokeActual > 0 && $totWtActualHours > 0)
+                                        ? round($totStrokeActual / $totWtActualHours, 2) : null;
+
+                    // % untuk kolom Shift Qty (persentase actual vs plan)
+                    $pctShift1 = ($totBoxPlan > 0 && $totBoxActual > 0)
+                                ? number_format(($totBoxActual / $totBoxPlan) * 100, 1) . '%' : '';
+                    $pctShift2 = ($totStrokePlan > 0 && $totStrokeActual > 0)
+                                ? number_format(($totStrokeActual / $totStrokePlan) * 100, 1) . '%' : '';
+                @endphp
+                <tr class="tr-total">
+                    <td colspan="3" style="text-align:center;font-weight:700;">Total</td>
+                    <td>{{ $totBoxPlan      ?: '' }}</td>
+                    <td>{{ $totBoxActual    ? round($totBoxActual, 2)    : '' }}</td>
+                    <td>{{ $totStrokePlan   ?: '' }}</td>
+                    <td>{{ $totStrokeActual ? round($totStrokeActual, 2) : '' }}</td>
+                    <td>{{ $totDandoriPlan  ?: '' }}</td>
+                    <td>{{ $totDandoriActual ?: '' }}</td>
+                    <td>{{ $totGsphPlan     ?: '' }}</td>
+                    <td>{{ $totGsphActual   ?? '' }}</td>
+                    <td>{{ $totWtPlan       ? round($totWtPlan, 2)       : '' }}</td>
+                    <td>{{ $totWtActualHours ?? '' }}</td>
+                    <td></td>
+                    <td>{{ $pctShift1 }}</td>
+                    <td></td>
+                    <td class="c-green">{{ $totDShift1 ?: '' }}</td>
+                    <td></td>
+                    <td>{{ $pctShift2 }}</td>
+                    <td></td>
+                    
+                </tr>
             </tbody>
         </table>
         </div>
