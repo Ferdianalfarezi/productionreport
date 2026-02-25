@@ -29,7 +29,7 @@
     .report-card { background: #fff; border: 2px solid #999; border-radius: 2px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
     .table-wrapper { overflow-x: auto; }
 
-    .report-table { width: 100%; border-collapse: collapse; font-size: 11.5px; min-width: 1500px; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 11.5px; min-width: 1400px; }
     .report-table th, .report-table td { border: 1px solid #aaa; padding: 3px 5px; text-align: center; white-space: nowrap; }
 
     .bg-w            { background: #fff !important; color: #111; }
@@ -86,61 +86,9 @@
     <div class="report-card">
         <div class="table-wrapper">
 
-        {{--
-        ═══════════════════════════════════════════════════════════════
-        24 KOLOM:
-          1-3   : No, Part_No, Stock_NP
-          4-13  : BOX(2) Stroke(2) Dandori(2) GSPH(2) WT(2)
-          14-17 : Shift1 Qty/Start/Finish/D
-          18-21 : Shift2 Qty/Start/Finish/D
-          22    : empty
-          23-24 : "-" / Shoot
-
-        HEADER 4 ROWS — Shift1/Shift2 TIDAK ada row terpisah,
-        langsung masuk sebagai teks di dalam sel Qty/Start/Finish/D
-        dengan format "Shift 1\nQty" menggunakan line-height trick,
-        atau: Shift1 label di row yg sama dengan Qty (colspan=4),
-        lalu sub-label Qty/St/Fi/D di row berikutnya.
-
-        CARA TERBAIK: pakai 2 baris untuk area kanan
-          Baris kanan-atas  : Shift1 colspan=4 | Shift2 colspan=4 | empty | - | Shoot
-          Baris kanan-bawah : Qty/St/Fi/D | Qty/St/Fi/D | (sama)
-
-        Dan baris kiri sudah punya:
-          Baris A: Line + BOX..WT headers
-          Baris B: Machine + Plan/Actual×5
-          Baris C: Mesin + totals
-          Baris D: "Detial.." + No/Part/Stock + Plan/Actual×5
-
-        Jadi total kiri butuh 4 baris, kanan butuh 2 baris.
-        → Shift 1/2 label: rowspan=2 (baris C dan D kiri = baris 1 dan 2 kanan)
-          tapi itu tetap 2 baris kosong di kanan.
-
-        SOLUSI FINAL: tulis header kiri di dalam satu blok div di luar tabel,
-        dan header kanan di dalam tabel normal.
-        
-        ATAU: gunakan CSS untuk menyatukan visual —
-        Shift 1 label di row C dengan rowspan=2,
-        dan di row D tulis Qty/St/Fi/D.
-        Row C kanan = Shift1(rowspan=2 via display trick) → tidak bisa HTML table.
-
-        CARA PALING BERSIH:
-        Shift1 + Qty/Start/Finish/D gabung dalam 1 sel per kolom,
-        dengan teks baris pertama "Shift 1" dan baris kedua "Qty" dll.
-        Gunakan <br> dan style.
-
-        Final: 1 sel per kolom dengan header 2-baris:
-        ┌──────┬───────┬────────┬───┬──────┬───────┬────────┬───┐
-        │Shift1│       │        │   │Shift2│       │        │   │
-        │ Qty  │ Start │ Finish │ D │ Qty  │ Start │ Finish │ D │
-        └──────┴───────┴────────┴───┴──────┴───────┴────────┴───┘
-        ═══════════════════════════════════════════════════════════
-        --}}
-
         <table class="report-table">
             <thead>
-
-                {{-- ══ ROW 1: Line + group headers + DRP title + DANDORI ══ --}}
+                {{-- ══ ROW 1 ══ --}}
                 <tr>
                     <th class="bg-w" colspan="3" style="text-align:left;padding-left:6px;font-weight:700;">
                         Line &nbsp;<span style="color:#1565C0;">{{ $selectedLine }}</span>
@@ -150,12 +98,12 @@
                     <th colspan="2" class="th-blue">Dandori</th>
                     <th colspan="2" class="th-blue">GSPH</th>
                     <th colspan="2" class="th-blue">Working Time</th>
-                    <th colspan="8" class="bg-w" style="font-size:18px;font-weight:800;letter-spacing:1px;">DETAIL REPORT PRODUKSI</th>
-                    <th class="bg-w"></th>
-                    <th colspan="2" class="th-yellow-hdr" style="font-size:10.5px;line-height:1.4;">DANDORI<br>DAN CAVITY</th>
+                    <th colspan="7" class="bg-w" style="font-size:18px;font-weight:800;letter-spacing:1px;">DETAIL REPORT PRODUKSI</th>
+                    {{-- DANDORI DAN CAVITY: rowspan=3 menempati row1, row2, row3 --}}
+                    <th colspan="2" class="th-yellow-hdr" style="font-size:10.5px;line-height:1.4;" rowspan="3">DANDORI<br>DAN CAVITY</th>
                 </tr>
 
-                {{-- ══ ROW 2: Machine + Plan/Actual + Shift1/2 group labels + "-"/Shoot ══ --}}
+                {{-- ══ ROW 2 ══ --}}
                 <tr>
                     <th class="bg-w" colspan="3" style="font-weight:700;">Machine</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
@@ -163,16 +111,12 @@
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
-                    {{-- Shift 1 label rowspan=2 → menutupi row 2 dan row 3 --}}
                     <th colspan="4" class="th-light-green" rowspan="2" style="vertical-align:middle;">Shift 1</th>
-                    {{-- Shift 2 label rowspan=2 --}}
-                    <th colspan="4" class="th-light-green" rowspan="2" style="vertical-align:middle;">Shift 2</th>
-                    <th class="bg-w" rowspan="2"></th>
-                    <th class="th-light-yellow" rowspan="2">-</th>
-                    <th class="th-light-yellow" rowspan="2">Shoot</th>
+                    <th colspan="3" class="th-light-green" rowspan="2" style="vertical-align:middle;">Shift 2</th>
+                    {{-- kolom DANDORI sudah di-rowspan dari row1, tidak perlu tambah cell di sini --}}
                 </tr>
 
-                {{-- ══ ROW 3: Mesin + totals (kanan tertutup rowspan) ══ --}}
+                {{-- ══ ROW 3 ══ --}}
                 <tr>
                     <td class="td-mesin" colspan="3">{{ $selectedMesin }}</td>
                     <td class="bg-w" style="font-weight:700;">{{ $summaryData['box_plan']       ?? '' }}</td>
@@ -185,106 +129,152 @@
                     <td class="bg-w" style="font-weight:700;">{{ $summaryData['gsph_actual']    ?? '' }}</td>
                     <td class="bg-w" style="font-weight:700;">{{ $summaryData['wt_plan']        ?? '' }}</td>
                     <td class="bg-w" style="font-weight:700;">{{ $summaryData['wt_actual']      ?? '' }}</td>
-                    {{-- col 14-24 tertutup rowspan dari row 2 --}}
+                    {{-- Shift 1 & 2 sudah di-rowspan dari row2 --}}
+                    {{-- DANDORI sudah di-rowspan dari row1 --}}
                 </tr>
 
-                {{-- ══ ROW 4: "Detial Plan vs Actual" + Qty/St/Fi/D labels ══ --}}
+                {{-- ══ ROW 4 ══ --}}
                 <tr>
-                    <td colspan="13" style="background:#fff;font-weight:700;font-size:12px;text-align:center;border:1px solid #aaa;">
-                        Detial Plan vs Actual (Item)
-                    </td>
-                    <th class="th-light-green">Qty</th>
-                    <th class="th-light-green">Start</th>
-                    <th class="th-light-green">Finish</th>
-                    <th class="th-light-green">D</th>
-                    <th class="th-light-green">Qty</th>
-                    <th class="th-light-green">Start</th>
-                    <th class="th-light-green">Finish</th>
-                    <th class="th-light-green">D</th>
-                    <th class="bg-w"></th>
-                    <th class="th-light-yellow">-</th>
-                    <th class="th-light-yellow">Shoot</th>
-                </tr>
-
-                {{-- ══ ROW 5: No/Part/Stock + Plan/Actual labels ══ --}}
-                <tr>
-                    <th class="col-no    bg-w" style="font-weight:700;">No</th>
-                    <th class="col-part  bg-w" style="font-weight:700;text-align:left;">Part_No</th>
+                    <th class="col-no bg-w" style="font-weight:700;">No</th>
+                    <th class="col-part bg-w" style="font-weight:700;text-align:left;">Part_No</th>
                     <th class="col-stock bg-w" style="font-weight:700;">Stock_NP</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
                     <th class="th-light-blue">Plan</th><th class="th-light-blue">Actual</th>
-                    <td colspan="11" class="bg-w"></td>
+                    <th class="th-light-green">Qty</th>
+                    <th class="th-light-green">Start</th>
+                    <th class="th-light-green">Finish</th>
+                    <th class="th-light-green">D</th>
+                    <th class="th-light-green">Qty</th>
+                    <th class="th-light-green">Start</th>
+                    <th class="th-light-green">Finish</th>
+                    <th class="th-light-yellow">D</th>
+                    <th class="th-light-yellow">Shoot</th>
                 </tr>
-
             </thead>
             <tbody>
-    @php $totalRows = max($parts->count(), 30); @endphp
-    @for($i = 0; $i < $totalRows; $i++)
-        @php
-            $part = $parts->get($i);
+                @php $totalRows = max($parts->count(), 30); @endphp
+                @for($i = 0; $i < $totalRows; $i++)
+                    @php
+                        $part = $parts->get($i);
 
-            $plan = null;
-            if ($part && $stockMap->has($part->part_no_child)) {
-                $calcProd = (int) $stockMap[$part->part_no_child]->calc_prod;
-                $plan = $calcProd * (int) $part->qty_kbn;
+                        /* ─── Plan ─── */
+                        $plan = null;
+                        if ($part && $stockMap->has($part->part_no_child)) {
+                            $calcProd = (int) $stockMap[$part->part_no_child]->calc_prod;
+                            $plan     = $calcProd * (int) $part->qty_kbn;
 
-                $category = strtolower(trim($part->category ?? ''));
+                            $category = strtolower(trim($part->category ?? ''));
 
-                if ($category === 'shoot' && $part->qty_category > 0) {
-                    $plan = $plan * (int) $part->qty_category;
-                } elseif ($category === 'cavity' && $part->qty_category > 0) {
-                    $plan = (int) round($plan / $part->qty_category);
-                }
-            }
+                            if ($category === 'shoot' && $part->qty_category > 0) {
+                                $plan = $plan * (int) $part->qty_category;
+                            } elseif ($category === 'cavity' && $part->qty_category > 0) {
+                                $plan = (int) round($plan / $part->qty_category);
+                            }
+                        }
 
-            $dandori = null;
-            if ($plan !== null && $plan >= 1) {
-                $dandori = 1;
-            }
+                        /* ─── Dandori ─── */
+                        $dandori = ($plan !== null && $plan >= 1) ? 1 : null;
 
-            $gsph = null;
-            if ($part && $stockMap->has($part->part_no_child)) {
-                $ltProd = (float) ($stockMap[$part->part_no_child]->lt_prod ?? 0);
-                $qtyKbn = (float) ($stockMap[$part->part_no_child]->qty_kbn ?? 0);
-                $qtyCat = (float) ($part->qty_category ?? 0);
+                        /* ─── GSPH ─── */
+                        $gsph = null;
+                        if ($part && $stockMap->has($part->part_no_child)) {
+                            $ltProd = (float) ($stockMap[$part->part_no_child]->lt_prod ?? 0);
+                            $qtyKbn = (float) ($stockMap[$part->part_no_child]->qty_kbn ?? 0);
+                            $qtyCat = (float) ($part->qty_category ?? 0);
+                            if ($ltProd > 0) {
+                                $gsph = round((60 / $ltProd) * $qtyKbn * $qtyCat);
+                            }
+                        }
 
-                if ($ltProd > 0) {
-                    $gsph = round((60 / $ltProd) * $qtyKbn * $qtyCat);
-                }
-            }
+                        /* ─── Working Time ─── */
+                        $wt = ($plan !== null && $gsph !== null && $gsph > 0)
+                            ? round($plan / $gsph, 2)
+                            : null;
 
-            $wt = null;
-            if ($plan !== null && $gsph !== null && $gsph > 0) {
-                $wt = round($plan / $gsph, 2);
-            }
-        @endphp
-       
-        <tr class="{{ $part ? 'row-data' : '' }}">
-            <td class="col-no">{{ $i + 1 }}</td>
-            <td class="col-part">{{ $part ? $part->part_no_child : '' }}</td>
-            <td>{{ $part && $stockMap->has($part->part_no_child) ? $stockMap[$part->part_no_child]->stock_store : '' }}</td>
-            <td>{{ $part && $stockMap->has($part->part_no_child) ? (int) $stockMap[$part->part_no_child]->calc_prod : '' }}</td><td>s</td>
-            <td>{{ $plan ?? '' }}</td><td></td>
-            <td>{{ $dandori ?? '' }}</td><td></td>
-            <td>{{ $gsph ?? '' }}</td><td></td>
-            <td>{{ $wt ?? '' }}</td><td></td>
-            <td class="c-green">0</td>
-            <td class="c-white"></td>
-            <td class="c-white"></td>
-            <td class="c-green">{{ $part ? '1' : '' }}</td>
-            <td class="c-green">0</td>
-            <td class="c-white"></td>
-            <td class="c-white"></td>
-            <td class="c-green">{{ $part ? '1' : '' }}</td>
-            <td></td>
-            <td class="c-green">0</td>
-            <td class="c-yellow">1</td>
-        </tr>
-    @endfor
-</tbody>
+                        /* ─── Actual dari reportMap ─── */
+                        $actualShift1 = null;
+                        $startShift1  = null;
+                        $finishShift1 = null;
+
+                        $actualShift2 = null;
+                        $startShift2  = null;
+                        $finishShift2 = null;
+
+                        if ($part && $stockMap->has($part->part_no_child)) {
+                            $kbnForActual = (int) ($stockMap[$part->part_no_child]->qty_kbn ?? 0);
+
+                            $dataS1 = $reportMap[$part->part_no_child][1] ?? null;
+                            $dataS2 = $reportMap[$part->part_no_child][2] ?? null;
+
+                            if ($dataS1 !== null && $kbnForActual > 0) {
+                                $actualShift1 = round($dataS1['qty_ok'] / $kbnForActual, 2);
+                                $startShift1  = $dataS1['prod_start'];
+                                $finishShift1 = $dataS1['prod_finish'];
+                            }
+                            if ($dataS2 !== null && $kbnForActual > 0) {
+                                $actualShift2 = round($dataS2['qty_ok'] / $kbnForActual, 2);
+                                $startShift2  = $dataS2['prod_start'];
+                                $finishShift2 = $dataS2['prod_finish'];
+                            }
+                        }
+
+                        /* ─── Warna actual ─── */
+                        $classA1 = $actualShift1 !== null
+                            ? ($plan !== null && $actualShift1 >= $plan ? 'c-green' : 'c-yellow')
+                            : 'c-white';
+                        $classA2 = $actualShift2 !== null
+                            ? ($plan !== null && $actualShift2 >= $plan ? 'c-green' : 'c-yellow')
+                            : 'c-white';
+                    @endphp
+
+                    <tr class="{{ $part ? 'row-data' : '' }}">
+                        {{-- [0] No --}}
+                        <td class="col-no">{{ $i + 1 }}</td>
+                        {{-- [1] Part No --}}
+                        <td class="col-part">{{ $part ? $part->part_no_child : '' }}</td>
+                        {{-- [2] Stock NP --}}
+                        <td>{{ $part && $stockMap->has($part->part_no_child) ? $stockMap[$part->part_no_child]->stock_store : '' }}</td>
+
+                        {{-- [3][4] BOX Plan / Actual --}}
+                        <td>{{ $part && $stockMap->has($part->part_no_child) ? (int) $stockMap[$part->part_no_child]->calc_prod : '' }}</td>
+                        <td></td>
+
+                        {{-- [5][6] Stroke Plan / Actual --}}
+                        <td>{{ $plan ?? '' }}</td>
+                        <td></td>
+
+                        {{-- [7][8] Dandori Plan / Actual --}}
+                        <td>{{ $dandori ?? '' }}</td>
+                        <td></td>
+
+                        {{-- [9][10] GSPH Plan / Actual --}}
+                        <td>{{ $gsph ?? '' }}</td>
+                        <td></td>
+
+                        {{-- [11][12] Working Time Plan / Actual --}}
+                        <td>{{ $wt ?? '' }}</td>
+                        <td></td>
+
+                        {{-- [13][14][15][16] Shift 1 : Qty, Start, Finish, D --}}
+                        <td class="{{ $classA1 }}">{{ $actualShift1 !== null ? $actualShift1 : '' }}</td>
+                        <td class="c-white">{{ $startShift1 ?? '' }}</td>
+                        <td class="c-white">{{ $finishShift1 ?? '' }}</td>
+                        <td class="c-green">{{ $part ? '1' : '' }}</td>
+
+                        {{-- [17][18][19] Shift 2 : Qty, Start, Finish --}}
+                        <td class="{{ $classA2 }}">{{ $actualShift2 !== null ? $actualShift2 : '' }}</td>
+                        <td class="c-white">{{ $startShift2 ?? '' }}</td>
+                        <td class="c-white">{{ $finishShift2 ?? '' }}</td>
+
+                        {{-- [20][21] DANDORI DAN CAVITY : D, Shoot --}}
+                        <td class="c-green">{{ $part ? '0' : '' }}</td>
+                        <td class="c-yellow">{{ $part ? '1' : '' }}</td>
+                    </tr>
+                @endfor
+            </tbody>
         </table>
         </div>
     </div>
