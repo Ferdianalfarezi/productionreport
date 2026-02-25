@@ -13,6 +13,7 @@ class Part extends Model
         'line',
         'qty_kbn',
         'category',
+        'calc_prod',
         'qty_category',
         'update_by',
     ];

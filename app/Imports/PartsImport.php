@@ -12,9 +12,6 @@ class PartsImport implements ToCollection, WithHeadingRow
     private int $imported = 0;
     private int $skipped  = 0;
 
-    /**
-     * Baris ke-2 adalah header (baris 1 = judul "E-Planning Production")
-     */
     public function headingRow(): int
     {
         return 2;
@@ -26,6 +23,7 @@ class PartsImport implements ToCollection, WithHeadingRow
             $partNoChild = trim($row['part_no_child'] ?? '');
             $line        = trim($row['line'] ?? '');
             $qtyKbn      = $row['qty_kbn'] ?? null;
+            $calcProd    = $row['calc_prod'] ?? null;
 
             // Skip baris kosong
             if ($partNoChild === '' && $line === '' && $qtyKbn === null) {
@@ -42,6 +40,7 @@ class PartsImport implements ToCollection, WithHeadingRow
                 'part_no_child' => $partNoChild ?: null,
                 'line'          => $line ?: null,
                 'qty_kbn'       => is_numeric($qtyKbn) ? $qtyKbn : null,
+                'calc_prod'     => is_numeric($calcProd) ? $calcProd : null,
                 'update_by'     => auth()->check() ? auth()->user()->name : 'import',
             ]);
 

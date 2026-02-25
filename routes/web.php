@@ -8,6 +8,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\PartController;
 use App\Http\Controllers\LineConfigController;
 use App\Http\Controllers\ReportProduksiController;
+use App\Http\Controllers\EPlanningImportController;
 
 // Auth
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
@@ -60,6 +61,12 @@ Route::middleware('auth.check')->group(function () {
     });
 
     Route::get('/report-produksi', [ReportProduksiController::class, 'index'])
-    ->name('report-produksi.index');
+        ->name('report-produksi.index');
+
+        Route::prefix('e-planning')->name('e-planning.')->group(function () {
+        Route::get('/import', [EPlanningImportController::class, 'index'])->name('import');
+        Route::post('/import', [EPlanningImportController::class, 'import']);
+    });
+
 
 });

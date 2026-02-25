@@ -379,6 +379,18 @@
             </div>
 
             <div class="nav-item-wrap">
+                <a href="{{ route('e-planning.import') }}"
+                   class="nav-item {{ request()->routeIs('e-planning.*') ? 'active' : '' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16M8 6v4M16 12v4M12 18v4"/>
+                    </svg>
+                    <span class="nav-label">Import E planning</span>
+                </a>
+                <span class="nav-tooltip">Import E planning</span>
+            </div>
+
+            <div class="nav-item-wrap">
                 <a href="{{ route('report-produksi.index') }}"
                    class="nav-item {{ request()->routeIs('report-produksi.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
