@@ -25,7 +25,7 @@ class EPlanningImportController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file_eplanning' => 'required|file|mimes:xlsx,xls|max:10240',
+            'file_eplanning' => 'required|file|mimes:xlsx,xls|max:50000',
             'file_report'    => 'nullable|file|mimes:xlsx,xls|max:10240',
         ], [
             'file_eplanning.required' => 'File History E-Planning wajib dipilih.',

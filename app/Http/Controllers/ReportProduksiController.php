@@ -39,27 +39,30 @@ class ReportProduksiController extends Controller
             $parts = Part::where('line', $selectedMesin)
                 ->whereIn('part_no_child', $validPartNos)
                 ->orderBy('part_no_child')
-                ->get();
+                ->get()
+                ->unique('part_no_child')
+                ->values();
+                
         }
 
         if ($parts->isNotEmpty()) {
             $partNos = $parts->pluck('part_no_child')->unique()->values();
-
+            
             // ── StockMap ──
-            $stockData = EPlanningStock::whereIn('part_no_child', $partNos)
+            $stockRows = EPlanningStock::whereIn('part_no_child', $partNos)
                 ->where('line', $selectedMesin)
-                ->select('part_no_child', DB::raw('MAX(e_planning_id) as max_id'))
+                ->select(
+                    'part_no_child',
+                    DB::raw('AVG(calc_prod) as calc_prod'),   // ← rata-rata
+                    DB::raw('MAX(stock_store) as stock_store'),
+                    DB::raw('MAX(lt_prod) as lt_prod'),
+                    DB::raw('MAX(qty_kbn) as qty_kbn'),
+                    DB::raw('MAX(e_planning_id) as e_planning_id')
+                )
                 ->groupBy('part_no_child')
                 ->get();
 
-            if ($stockData->isNotEmpty()) {
-                $maxIds    = $stockData->pluck('max_id')->toArray();
-                $stockRows = EPlanningStock::whereIn('e_planning_id', $maxIds)
-                    ->where('line', $selectedMesin)
-                    ->get(['part_no_child', 'stock_store', 'calc_prod', 'lt_prod', 'qty_kbn', 'e_planning_id']);
-
-                $stockMap = $stockRows->keyBy('part_no_child');
-            }
+            $stockMap = $stockRows->keyBy('part_no_child');
 
             // ── ReportMap ──
             $latestIds = ReportProduction::whereIn('part_no', $partNos)
@@ -85,13 +88,14 @@ class ReportProduksiController extends Controller
                 }
             }
 
-            // ── Helper: hitung diff menit dari HH:MM ──
-            $diffMinutes = function($start, $finish) {
+            // ── Helper: hitung diff menit dari HH:MM (support lintas tengah malam) ──
+            $diffMinutes = function ($start, $finish) {
                 if (!$start || !$finish) return 0;
                 try {
                     [$sh, $sm] = array_map('intval', explode(':', $start));
                     [$fh, $fm] = array_map('intval', explode(':', $finish));
                     $diff = ($fh * 60 + $fm) - ($sh * 60 + $sm);
+                    if ($diff < 0) $diff += 1440; // lintas tengah malam
                     return $diff > 0 ? $diff : 0;
                 } catch (\Throwable $e) {
                     return 0;
@@ -99,15 +103,18 @@ class ReportProduksiController extends Controller
             };
 
             // ── SummaryData ──
-            $totalBoxPlan     = 0;
-            $totalBoxActual   = 0;
-            $totalStrokePlan  = 0;
-            $totalStrokeActual= 0;
-            $totalDandoriPlan = 0;
+            $totalBoxPlan       = 0;
+            $totalBoxActual     = 0;
+            $totalStrokePlan    = 0;
+            $totalStrokeActual  = 0;
+            $totalDandoriPlan   = 0;
             $totalDandoriActual = 0;
-            $totalGsphPlan    = 0;
-            $totalWtPlan      = 0;
-            $totalWtActual    = 0; // dalam menit, konversi ke jam di akhir
+            $totalGsphPlan      = 0;
+            $gsphPlanCount      = 0;   // counter untuk rata-rata gsph_plan
+            $totalGsphActualSum = 0;   // akumulasi gsph_actual per part
+            $gsphActualCount    = 0;   // counter untuk rata-rata gsph_actual
+            $totalWtPlan        = 0;
+            $totalWtActual      = 0;   // dalam menit, konversi ke jam di akhir
 
             foreach ($parts as $part) {
                 if (!$stockMap->has($part->part_no_child)) continue;
@@ -140,6 +147,7 @@ class ReportProduksiController extends Controller
                     $gsph = round((60 / $ltProd) * $qtyKbn * $qtyCat);
                 }
                 $totalGsphPlan += $gsph;
+                if ($gsph > 0) $gsphPlanCount++;
 
                 // ── wt_plan ──
                 if ($plan > 0 && $gsph > 0) {
@@ -162,8 +170,10 @@ class ReportProduksiController extends Controller
                 if ($actualTotal !== null) $totalBoxActual += $actualTotal;
 
                 // stroke_actual = actualTotal × qty_kbn
+                $strokePart = 0;
                 if ($actualTotal !== null && $kbnForActual > 0) {
-                    $totalStrokeActual += round($actualTotal * $kbnForActual, 2);
+                    $strokePart = round($actualTotal * $kbnForActual, 2);
+                    $totalStrokeActual += $strokePart;
                 }
 
                 // dandori_actual = D shift1 + D shift2
@@ -171,31 +181,41 @@ class ReportProduksiController extends Controller
                 $dS2 = $dataS2 ? ($dataS2['prod_finish'] ? 1 : 0) : 0;
                 $totalDandoriActual += ($dS1 + $dS2);
 
-                // wt_actual dalam menit
+                // wt_actual dalam menit (support lintas tengah malam)
                 $diff1 = $diffMinutes($dataS1['prod_start'] ?? null, $dataS1['prod_finish'] ?? null);
                 $diff2 = $diffMinutes($dataS2['prod_start'] ?? null, $dataS2['prod_finish'] ?? null);
-                $totalWtActual += ($diff1 + $diff2);
+                $wtPartMin = $diff1 + $diff2;
+                $totalWtActual += $wtPartMin;
+
+                // gsph_actual per part = stroke_actual / wt_actual (jam)
+                if ($wtPartMin > 0 && $strokePart > 0) {
+                    $gsphActualPart      = round($strokePart / ($wtPartMin / 60), 2);
+                    $totalGsphActualSum += $gsphActualPart;
+                    $gsphActualCount++;
+                }
             }
 
             // wt_actual konversi menit → jam
             $wtActualHours = $totalWtActual > 0 ? round($totalWtActual / 60, 2) : null;
 
-            // gsph_actual = total stroke_actual ÷ total wt_actual (jam)
-            $gsphActualSummary = null;
-            if ($totalStrokeActual > 0 && $wtActualHours > 0) {
-                $gsphActualSummary = round($totalStrokeActual / $wtActualHours, 2);
-            }
+            // gsph_plan rata-rata
+            $gsphPlanAvg = ($gsphPlanCount > 0)
+                ? round($totalGsphPlan / $gsphPlanCount, 2) : null;
 
-            $summaryData['box_plan']       = $totalBoxPlan      > 0 ? $totalBoxPlan                : '';
-            $summaryData['box_actual']     = $totalBoxActual    > 0 ? round($totalBoxActual, 2)    : '';
-            $summaryData['stroke_plan']    = $totalStrokePlan   > 0 ? $totalStrokePlan             : '';
-            $summaryData['stroke_actual']  = $totalStrokeActual > 0 ? round($totalStrokeActual, 2) : '';
-            $summaryData['dandori_plan']   = $totalDandoriPlan  > 0 ? $totalDandoriPlan            : '';
-            $summaryData['dandori_actual'] = $totalDandoriActual> 0 ? $totalDandoriActual          : '';
-            $summaryData['gsph_plan']      = $totalGsphPlan     > 0 ? $totalGsphPlan              : '';
-            $summaryData['gsph_actual']    = $gsphActualSummary ?? '';
-            $summaryData['wt_plan']        = $totalWtPlan       > 0 ? round($totalWtPlan, 2)       : '';
-            $summaryData['wt_actual']      = $wtActualHours     ?? '';
+            // gsph_actual rata-rata
+            $gsphActualAvg = ($gsphActualCount > 0)
+                ? round($totalGsphActualSum / $gsphActualCount, 2) : null;
+
+            $summaryData['box_plan']       = $totalBoxPlan       > 0 ? $totalBoxPlan                  : '';
+            $summaryData['box_actual']     = $totalBoxActual     > 0 ? round($totalBoxActual, 2)       : '';
+            $summaryData['stroke_plan']    = $totalStrokePlan    > 0 ? $totalStrokePlan                : '';
+            $summaryData['stroke_actual']  = $totalStrokeActual  > 0 ? round($totalStrokeActual, 2)    : '';
+            $summaryData['dandori_plan']   = $totalDandoriPlan   > 0 ? $totalDandoriPlan               : '';
+            $summaryData['dandori_actual'] = $totalDandoriActual > 0 ? $totalDandoriActual             : '';
+            $summaryData['gsph_plan']      = $gsphPlanAvg        ?? '';
+            $summaryData['gsph_actual']    = $gsphActualAvg      ?? '';
+            $summaryData['wt_plan']        = $totalWtPlan        > 0 ? round($totalWtPlan, 2)          : '';
+            $summaryData['wt_actual']      = $wtActualHours      ?? '';
         }
 
         return view('report-produksi.index', compact(

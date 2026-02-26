@@ -157,14 +157,15 @@
             <tbody>
                 @php
                     /* ── Akumulator untuk baris Total ── */
-                    $totBoxPlan      = 0; $totBoxActual    = 0;
-                    $totStrokePlan   = 0; $totStrokeActual = 0;
-                    $totDandoriPlan  = 0; $totDandoriActual= 0;
-                    $totGsphPlan     = 0;
-                    $totWtPlan       = 0; $totWtActualMin  = 0;
-                    $totShift1Qty    = 0; $totShift2Qty    = 0;
-                    $totDShift1      = 0; $totDShift2      = 0;
-                    $totShoot        = 0;
+                    $totBoxPlan         = 0; $totBoxActual    = 0;
+                    $totStrokePlan      = 0; $totStrokeActual = 0;
+                    $totDandoriPlan     = 0; $totDandoriActual= 0;
+                    $totGsphPlan        = 0; $totGsphPlanCount   = 0;
+                    $totGsphActualSum   = 0; $totGsphActualCount = 0;
+                    $totWtPlan          = 0; $totWtActualMin  = 0;
+                    $totShift1Qty       = 0; $totShift2Qty    = 0;
+                    $totDShift1         = 0; $totDShift2      = 0;
+                    $totShoot           = 0;
                 @endphp
 
                 @foreach($parts as $i => $part)
@@ -247,6 +248,7 @@
                                 [$sh, $sm] = array_map('intval', explode(':', $start));
                                 [$fh, $fm] = array_map('intval', explode(':', $finish));
                                 $diff = ($fh * 60 + $fm) - ($sh * 60 + $sm);
+                                if ($diff < 0) $diff += 1440; // lintas tengah malam
                                 return $diff > 0 ? $diff : 0;
                             } catch (\Throwable $e) { return 0; }
                         };
@@ -271,21 +273,33 @@
 
                         /* ─── Akumulasi Total ─── */
                         if ($stockMap->has($part->part_no_child)) {
-                            $totBoxPlan      += (int) $stockMap[$part->part_no_child]->calc_prod;
+                            $totBoxPlan += (int) $stockMap[$part->part_no_child]->calc_prod;
                         }
                         $totBoxActual    += $actualTotal    ?? 0;
                         $totStrokePlan   += $plan           ?? 0;
                         $totStrokeActual += $strokeActual   ?? 0;
                         $totDandoriPlan  += $dandori        ?? 0;
                         $totDandoriActual+= $dandoriActual;
-                        $totGsphPlan     += $gsph           ?? 0;
-                        $totWtPlan       += $wt             ?? 0;
-                        $totWtActualMin  += $totalMinutes;
-                        $totShift1Qty    += $actualShift1   ?? 0;
-                        $totShift2Qty    += $actualShift2   ?? 0;
-                        $totDShift1      += ($finishShift1 ? 1 : 0);
-                        $totDShift2      += ($finishShift2 ? 1 : 0);
-                        $totShoot        += 1;
+
+                        // gsph plan: akumulasi sum + counter untuk rata-rata
+                        if ($gsph !== null && $gsph > 0) {
+                            $totGsphPlan      += $gsph;
+                            $totGsphPlanCount++;
+                        }
+
+                        // gsph actual: akumulasi sum + counter untuk rata-rata
+                        if ($gsphActual !== null && $gsphActual > 0) {
+                            $totGsphActualSum   += $gsphActual;
+                            $totGsphActualCount++;
+                        }
+
+                        $totWtPlan      += $wt             ?? 0;
+                        $totWtActualMin += $totalMinutes;
+                        $totShift1Qty   += $actualShift1   ?? 0;
+                        $totShift2Qty   += $actualShift2   ?? 0;
+                        $totDShift1     += ($finishShift1 ? 1 : 0);
+                        $totDShift2     += ($finishShift2 ? 1 : 0);
+                        $totShoot       += 1;
                     @endphp
 
                     <tr class="row-data">
@@ -310,15 +324,17 @@
                         <td class="c-white">{{ $startShift2 ?? '' }}</td>
                         <td class="c-white">{{ $finishShift2 ?? '' }}</td>
                         <td class="c-green">{{ $finishShift2 ? '1' : '0' }}</td>
-                        <td class="c-yellow">1</td>
+                        <td class="c-yellow">{{ $part->qty_category ?? '' }}</td>
                     </tr>
                 @endforeach
 
                 {{-- ══ BARIS TOTAL ══ --}}
                 @php
-                    $totWtActualHours  = $totWtActualMin > 0 ? round($totWtActualMin / 60, 2) : null;
-                    $totGsphActual     = ($totStrokeActual > 0 && $totWtActualHours > 0)
-                                        ? round($totStrokeActual / $totWtActualHours, 2) : null;
+                    $totWtActualHours = $totWtActualMin > 0 ? round($totWtActualMin / 60, 2) : null;
+
+                    // gsph rata-rata
+                    $totGsphPlanAvg   = $totGsphPlanCount   > 0 ? round($totGsphPlan        / $totGsphPlanCount,   2) : null;
+                    $totGsphActualAvg = $totGsphActualCount > 0 ? round($totGsphActualSum   / $totGsphActualCount, 2) : null;
 
                     // % untuk kolom Shift Qty (persentase actual vs plan)
                     $pctShift1 = ($totBoxPlan > 0 && $totBoxActual > 0)
@@ -334,8 +350,8 @@
                     <td>{{ $totStrokeActual ? round($totStrokeActual, 2) : '' }}</td>
                     <td>{{ $totDandoriPlan  ?: '' }}</td>
                     <td>{{ $totDandoriActual ?: '' }}</td>
-                    <td>{{ $totGsphPlan     ?: '' }}</td>
-                    <td>{{ $totGsphActual   ?? '' }}</td>
+                    <td>{{ $totGsphPlanAvg   ?? '' }}</td>
+                    <td>{{ $totGsphActualAvg ?? '' }}</td>
                     <td>{{ $totWtPlan       ? round($totWtPlan, 2)       : '' }}</td>
                     <td>{{ $totWtActualHours ?? '' }}</td>
                     <td></td>
@@ -345,7 +361,6 @@
                     <td></td>
                     <td>{{ $pctShift2 }}</td>
                     <td></td>
-                    
                 </tr>
             </tbody>
         </table>

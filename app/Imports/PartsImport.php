@@ -14,7 +14,7 @@ class PartsImport implements ToCollection, WithHeadingRow
 
     public function headingRow(): int
     {
-        return 2;
+        return 1;
     }
 
     public function collection(Collection $rows)
@@ -27,12 +27,6 @@ class PartsImport implements ToCollection, WithHeadingRow
 
             // Skip baris kosong
             if ($partNoChild === '' && $line === '' && $qtyKbn === null) {
-                continue;
-            }
-
-            // Skip jika part_no_child sudah ada di database
-            if ($partNoChild !== '' && Part::where('part_no_child', $partNoChild)->exists()) {
-                $this->skipped++;
                 continue;
             }
 

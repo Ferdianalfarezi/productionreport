@@ -12,15 +12,15 @@ class CavityImport implements ToCollection
     private int $skipped = 0;
 
     /**
-     * File data_cavity.xlsx tidak punya heading row standar.
+     * Struktur file data_cavity.xlsx:
      * - Row 1: judul ("Master Report")
-     * - Row 2: header asli (ID, QRSOP, PART_NO, PART_NO, PROCESS_NO, MACHINE_NO, CATEGORY, QTY_CATEGORY, ...)
+     * - Row 2: header (None, ID, QRSOP, PART_NO, PROCESS_NO, MACHINE_NO, CATEGORY, QTY_CATEGORY, ...)
      * - Row 3+: data
      *
      * Mapping kolom (0-indexed):
-     *   Index 4 (Col E) = PART_NO  → dipakai sebagai KEY untuk match PART_NO_CHILD di tabel parts
-     *   Index 8 (Col I) = CATEGORY
-     *   Index 9 (Col J) = QTY_CATEGORY
+     *   Index 3 (Col D) = PART_NO      → match ke part_no_child di tabel parts
+     *   Index 6 (Col G) = CATEGORY
+     *   Index 7 (Col H) = QTY_CATEGORY
      */
     public function collection(Collection $rows)
     {
@@ -30,9 +30,9 @@ class CavityImport implements ToCollection
                 continue;
             }
 
-            $partNo      = trim($row[4] ?? '');
-            $category    = trim($row[8] ?? '');
-            $qtyCategory = $row[9] ?? null;
+            $partNo      = trim($row[3] ?? '');
+            $category    = trim($row[6] ?? '');
+            $qtyCategory = $row[7] ?? null;
 
             if ($partNo === '') {
                 continue;
