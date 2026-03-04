@@ -134,7 +134,7 @@
                 {{-- ── FILE 2: Report Production ── --}}
                 <div class="file-section">
                     <div class="file-section-title optional">
-                        📊 File 2 — Report Production <span>(Opsional — untuk data Actual)</span>
+                        📊 File 2 — Report Production <span></span>
                     </div>
                     <div class="info-box" style="margin-bottom:10px;background:#F1F8F1;border-color:#A5D6A7;color:#1b5e20;">
                         <div class="info-item">📌 <strong>Kolom wajib:</strong> PART_NO, MACHINE_NO, QTY_OK, SHIFT</div>
@@ -145,7 +145,7 @@
                         <input type="file" name="file_report" id="fileReport" accept=".xlsx,.xls">
                         <div class="dz-icon">📂</div>
                         <div class="dz-text">Klik atau drag & drop file Report Production</div>
-                        <div class="dz-sub">Format: .xlsx / .xls — Maks 10 MB (opsional)</div>
+                        <div class="dz-sub">Format: .xlsx / .xls </div>
                         <div class="dz-selected" id="fileName2"></div>
                     </div>
                     @error('file_report')

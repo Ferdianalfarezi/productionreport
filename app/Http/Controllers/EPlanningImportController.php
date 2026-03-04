@@ -104,6 +104,9 @@ class EPlanningImportController extends Controller
 
             $get = fn($col) => isset($colMap[$col]) ? ($row[$colMap[$col]] ?? null) : null;
 
+            // Skip baris dengan JUDGEMENT = 'No Prod'
+            if (strtolower(trim((string)$get('JUDGEMENT'))) === 'no prod') continue;
+
             $calcTime = null;
             if ($raw = $get('CALC_TIME')) {
                 try { $calcTime = \Carbon\Carbon::parse($raw)->toDateTimeString(); } catch (\Exception $e) {}

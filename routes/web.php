@@ -9,6 +9,7 @@ use App\Http\Controllers\PartController;
 use App\Http\Controllers\LineConfigController;
 use App\Http\Controllers\ReportProduksiController;
 use App\Http\Controllers\EPlanningImportController;
+use App\Http\Controllers\BreakTimeController;
 
 // Auth
 Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
@@ -67,6 +68,9 @@ Route::middleware('auth.check')->group(function () {
         Route::get('/import', [EPlanningImportController::class, 'index'])->name('import');
         Route::post('/import', [EPlanningImportController::class, 'import']);
     });
+
+    Route::resource('break-times', BreakTimeController::class)
+    ->only(['index', 'store', 'update', 'destroy']);
 
 
 });
