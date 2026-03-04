@@ -328,6 +328,7 @@ class ReportProduksiController extends Controller
             'reportMap',
             'summaryData',
             'breakByShift',
+            'breakTimes',   // ← tambah ini
         ));
     }
 }

@@ -18,7 +18,7 @@ class EPlanningImportController extends Controller
 
         return view('e-planning.import', compact(
             'lastImport', 'totalRows',
-            'lastReportImport', 'totalReportRows'
+            'lastReportImport', 'totalReportRows',
         ));
     }
 

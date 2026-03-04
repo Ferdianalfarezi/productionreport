@@ -80,7 +80,8 @@ class ReportProduksiController extends Controller
             'parts',
             'stockMap',
             'reportMap',
-            'summaryData'
+            'summaryData',
+            'breakTimes',
         ));
     }
 }
