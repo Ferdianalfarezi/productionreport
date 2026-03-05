@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') | Production Report</title>
-
+    <link rel="icon" type="image/png" href="{{ asset('images/logostep.png') }}">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- ✅ SweetAlert2 CDN — tidak perlu install composer -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
@@ -47,7 +49,7 @@
         .sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
         .sidebar.collapsed { width: 72px; }
-        .sidebar.collapsed .nav-label,
+        .sidebar.collapsed .nav-label-wrap,
         .sidebar.collapsed .nav-section,
         .sidebar.collapsed .logo-text,
         .sidebar.collapsed .user-name-wrap { display: none; }
@@ -69,6 +71,13 @@
         .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
         .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 600; }
         .nav-item svg { flex-shrink: 0; }
+
+        /* ─── NAV LABEL WRAP (JP subtitle) ─── */
+        .nav-label-wrap { display: flex; flex-direction: column; line-height: 1.2; }
+        .nav-label { font-size: 0.875rem; }
+        .nav-label-jp { font-size: 0.8rem; color: #6b7280; font-weight: 600; letter-spacing: 0.06em; margin-top: 1px; }
+        .nav-item:hover .nav-label-jp,
+        .nav-item.active .nav-label-jp { color: #ffffff; }
 
         /* ─── USER AREA ─── */
         .sidebar-footer { padding: 12px 8px; border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
@@ -99,7 +108,6 @@
 
         /* ─── CONTENT ─── */
         .content-area { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 24px; position: relative; }
-        /* Report produksi punya page-wrapper sendiri, reset padding-nya */
         .content-area > .page-wrapper { margin: -24px; padding: 20px 24px; min-height: calc(100% + 48px); }
 
         /* ─── MODAL ─── */
@@ -113,7 +121,6 @@
         /* ═══════════════════════════════════════════════
            REPORT PRODUKSI — CSS
            ═══════════════════════════════════════════════ */
-
         .page-wrapper {
             padding: 20px 24px;
             background: #F5F6F8;
@@ -309,6 +316,43 @@
         .imp-drop-opt.has-file { border-color:#16A34A; border-style:solid; background:#F0FBF4; }
         .imp-drop-text { font-size:12.5px; color:#8A90A2; }
         .imp-drop.has-file .imp-drop-text { color:#15803D; font-weight:600; }
+
+        /* ══ SWEETALERT2 CUSTOM STYLE ══ */
+        .swal2-popup {
+            font-family: 'DM Sans', sans-serif !important;
+            border-radius: 16px !important;
+            padding: 28px !important;
+        }
+        .swal2-title {
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            color: #0F1117 !important;
+        }
+        .swal2-html-container {
+            font-size: 13.5px !important;
+            color: #4A5168 !important;
+        }
+        .swal2-confirm {
+            border-radius: 8px !important;
+            font-family: 'DM Sans', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            padding: 9px 22px !important;
+        }
+        .swal2-cancel {
+            border-radius: 8px !important;
+            font-family: 'DM Sans', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            padding: 9px 22px !important;
+            background: #F5F6F8 !important;
+            color: #4A5168 !important;
+            border: 1.5px solid #E4E7ED !important;
+        }
+        .swal2-cancel:hover { background: #E4E7ED !important; }
+        .swal2-timer-progress-bar { background: #2563EB !important; }
+        /* Toast style */
+        .swal2-toast .swal2-title { font-size: 13.5px !important; }
     </style>
 
     @stack('styles')
@@ -332,7 +376,10 @@
             <div class="nav-item-wrap">
                 <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    <span class="nav-label">Dashboard</span>
+                    <span class="nav-label-wrap">
+                        <span class="nav-label">Dashboard</span>
+                        <span class="nav-label-jp">ダッシュボード</span>
+                    </span>
                 </a>
                 <span class="nav-tooltip">Dashboard</span>
             </div>
@@ -340,7 +387,10 @@
             <div class="nav-item-wrap">
                 <a href="{{ route('mesin.index') }}" class="nav-item {{ request()->routeIs('mesin.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    <span class="nav-label">Mesin</span>
+                    <span class="nav-label-wrap">
+                        <span class="nav-label">Mesin</span>
+                        <span class="nav-label-jp">マシン</span>
+                    </span>
                 </a>
                 <span class="nav-tooltip">Data Mesin</span>
             </div>
@@ -348,7 +398,10 @@
             <div class="nav-item-wrap">
                 <a href="{{ route('parts.index') }}" class="nav-item {{ request()->routeIs('parts.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a4 4 0 01-5.4 5.4l-4.6 4.6a2 2 0 102.8 2.8l4.6-4.6a4 4 0 005.4-5.4l-2.1 2.1-1.4-1.4 2.1-2.1z"/></svg>
-                    <span class="nav-label">Parts</span>
+                    <span class="nav-label-wrap">
+                        <span class="nav-label">Parts</span>
+                        <span class="nav-label-jp">パーツ</span>
+                    </span>
                 </a>
                 <span class="nav-tooltip">Parts</span>
             </div>
@@ -356,30 +409,38 @@
             <div class="nav-item-wrap">
                 <a href="{{ route('line-configs.index') }}" class="nav-item {{ request()->routeIs('line-configs.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16M8 6v4M16 12v4M12 18v4"/></svg>
-                    <span class="nav-label">Line Config</span>
+                    <span class="nav-label-wrap">
+                        <span class="nav-label">Konfigurasi Line</span>
+                        <span class="nav-label-jp">ライン設定</span>
+                    </span>
                 </a>
-                <span class="nav-tooltip">Line Config</span>
+                <span class="nav-tooltip">Konfigurasi Line</span>
             </div>
-
-            
 
             <div class="nav-item-wrap">
                 <a href="{{ route('report-produksi.index') }}" class="nav-item {{ request()->routeIs('report-produksi.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 3v5h5M9 13h6M9 17h6"/></svg>
-                    <span class="nav-label">Report Produksi</span>
+                    <span class="nav-label-wrap">
+                        <span class="nav-label">Report Produksi</span>
+                        <span class="nav-label-jp">生産レポート</span>
+                    </span>
                 </a>
                 <span class="nav-tooltip">Report Produksi</span>
             </div>
 
-            <p class="nav-section">Management</p>
-
-            <div class="nav-item-wrap">
-                <a href="{{ route('users.index') }}" class="nav-item {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                    <span class="nav-label">Users</span>
-                </a>
-                <span class="nav-tooltip">Users</span>
-            </div>
+            @if(auth()->user()->isSuperAdmin())
+                <p class="nav-section">Management</p>
+                <div class="nav-item-wrap">
+                    <a href="{{ route('users.index') }}" class="nav-item {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        <span class="nav-label-wrap">
+                            <span class="nav-label">Users</span>
+                            <span class="nav-label-jp">ユーザー</span>
+                        </span>
+                    </a>
+                    <span class="nav-tooltip">Users</span>
+                </div>
+            @endif
 
         </nav>
 
@@ -391,16 +452,6 @@
                     <p class="urole">{{ ucfirst(Auth::user()->role->nama) }}</p>
                 </div>
             </div>
-            <form action="{{ route('logout') }}" method="POST">
-                @csrf
-                <div class="nav-item-wrap">
-                    <button type="submit" class="logout-btn">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        <span class="nav-label">Logout</span>
-                    </button>
-                    <span class="nav-tooltip">Logout</span>
-                </div>
-            </form>
         </div>
     </aside>
 
@@ -413,17 +464,36 @@
                 </button>
                 <div>
                     <h2 class="text-base font-semibold text-gray-800 leading-tight">@yield('title', 'Dashboard')</h2>
-                    <p class="text-xs text-gray-400">{{ now()->format('l, d F Y') }}</p>
+                    <p class="text-xs text-gray-400">{{ now()->format('l, d F Y') }} &nbsp;·&nbsp; <span id="live-clock"></span></p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <p class="text-sm font-medium text-gray-700">{{ Auth::user()->username }}</p>
-                <div class="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center">
-                    @if(Auth::user()->avatar)
-                        <img src="{{ asset('storage/users/'.Auth::user()->avatar) }}" class="w-9 h-9 rounded-full object-cover">
-                    @else
-                        <span class="text-white font-bold text-sm">{{ strtoupper(substr(Auth::user()->username, 0, 1)) }}</span>
-                    @endif
+            <div class="relative" id="userMenuWrap">
+                <button onclick="toggleUserMenu()" class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+                    <div class="text-right hidden sm:block">
+                        <p class="text-sm font-semibold text-gray-800 leading-tight">{{ Auth::user()->username }}</p>
+                        <p class="text-xs text-gray-400">{{ ucfirst(Auth::user()->role->nama) }}</p>
+                    </div>
+                    <div class="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
+                        @if(Auth::user()->avatar)
+                            <img src="{{ asset('storage/users/'.Auth::user()->avatar) }}" class="w-9 h-9 rounded-full object-cover">
+                        @else
+                            <span class="text-white font-bold text-sm">{{ strtoupper(substr(Auth::user()->username, 0, 1)) }}</span>
+                        @endif
+                    </div>
+                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+
+                <!-- Dropdown -->
+                <div id="userMenu" class="hidden absolute right-0 top-full mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50" style="animation: rpDropIn .15s ease;">
+                    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                        <p class="text-xs font-700 text-gray-800 font-semibold">{{ Auth::user()->username }}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ ucfirst(Auth::user()->role->nama) }}</p>
+                    </div>
+                    {{-- ✅ Logout pakai type="button" + onclick confirmLogout() --}}
+                    <button type="button" onclick="confirmLogout()" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition font-medium">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        Logout
+                    </button>
                 </div>
             </div>
         </header>
@@ -431,12 +501,22 @@
         <div class="content-area">
             @yield('content')
         </div>
+
+        <footer style="flex-shrink:0; background:#fff; border-top:1px solid #ffffff; padding:10px 24px; text-align:center; font-size:11.5px; color:#000000; font-family:'DM Sans',sans-serif; letter-spacing:.02em;">
+            &copy; STEP <strong style="color:#000000;">IT Dept</strong> &mdash; All Rights Reserved
+        </footer>
     </div>
 </div>
 
+{{-- ══ HIDDEN FORM LOGOUT GLOBAL ══ --}}
+<form id="globalLogoutForm" action="{{ route('logout') }}" method="POST" style="display:none">
+    @csrf
+</form>
+
 <script>
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('sidebarToggle');
+    // ── SIDEBAR TOGGLE ──
+    const sidebar    = document.getElementById('sidebar');
+    const toggleBtn  = document.getElementById('sidebarToggle');
     const STORAGE_KEY = 'sidebar_collapsed';
 
     if (localStorage.getItem(STORAGE_KEY) === '1') {
@@ -457,6 +537,7 @@
 @includeIf('e-planning.import')
 
 <script>
+    // ── BREAK TIMES MODAL ──
     function openBtModal() {
         document.getElementById('btModal').classList.add('open');
     }
@@ -475,14 +556,14 @@
     function closeBtEdit() {
         document.getElementById('btEditModal').classList.remove('open');
     }
-    // Close on overlay click
+
     document.addEventListener('click', function(e) {
-        if (e.target.id === 'btModal') closeBtModal();
+        if (e.target.id === 'btModal')     closeBtModal();
         if (e.target.id === 'btEditModal') closeBtEdit();
         if (e.target.id === 'importModal') closeImportModal();
     });
 
-    // Import modal
+    // ── IMPORT MODAL ──
     function openImportModal() {
         document.getElementById('importModal').classList.add('open');
     }
@@ -490,7 +571,7 @@
         document.getElementById('importModal').classList.remove('open');
     }
     function impFileChanged(input, dropId, nameId) {
-        const drop = document.getElementById(dropId);
+        const drop   = document.getElementById(dropId);
         const nameEl = document.getElementById(nameId);
         if (input.files && input.files.length) {
             nameEl.textContent = '📄 ' + input.files[0].name;
@@ -499,12 +580,10 @@
             nameEl.textContent = 'Klik untuk pilih file .xlsx / .xls';
             drop.classList.remove('has-file');
         }
-        // Enable submit only if file1 selected
-        const f1 = document.getElementById('impFile1');
+        const f1  = document.getElementById('impFile1');
         const btn = document.getElementById('impSubmitBtn');
         if (btn) btn.disabled = !(f1 && f1.files && f1.files.length > 0);
     }
-    // Import form submit
     const impForm = document.getElementById('importModalForm');
     if (impForm) {
         impForm.addEventListener('submit', function() {
@@ -517,12 +596,224 @@
     @if(session('import_success') || session('import_error'))
         document.addEventListener('DOMContentLoaded', function() { openImportModal(); });
     @endif
-    // Auto-open if session has success (after form submit)
+</script>
+
+{{-- ══════════════════════════════════════════════
+     SWEETALERT2 — All CRUD + Logout
+══════════════════════════════════════════════ --}}
+<script>
+// ── Tema dasar SweetAlert2 sesuai design system ──
+const SwalTheme = {
+    confirmButtonColor: '#2563EB',
+    buttonsStyling: true,
+    customClass: { popup: 'swal2-popup' },
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ════════════════════════════════
+    // 1. FLASH SESSION MESSAGES
+    // ════════════════════════════════
+
     @if(session('success'))
-        document.addEventListener('DOMContentLoaded', function() {
-            openBtModal();
-        });
+    Swal.fire({
+        ...SwalTheme,
+        icon: 'success',
+        title: 'Berhasil!',
+        text: @json(session('success')),
+        timer: 3000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+    });
     @endif
+
+    @if(session('error'))
+    Swal.fire({
+        ...SwalTheme,
+        icon: 'error',
+        title: 'Gagal!',
+        text: @json(session('error')),
+        confirmButtonText: 'Tutup',
+    });
+    @endif
+
+    @if(session('warning'))
+    Swal.fire({
+        ...SwalTheme,
+        icon: 'warning',
+        title: 'Perhatian!',
+        text: @json(session('warning')),
+        confirmButtonText: 'Oke',
+    });
+    @endif
+
+    @if(session('info'))
+    Swal.fire({
+        ...SwalTheme,
+        icon: 'info',
+        title: 'Info',
+        text: @json(session('info')),
+        confirmButtonText: 'Oke',
+    });
+    @endif
+
+    // ════════════════════════════════
+    // 2. VALIDASI ERROR (Laravel $errors)
+    // ════════════════════════════════
+    @if($errors->any())
+    Swal.fire({
+        ...SwalTheme,
+        icon: 'error',
+        title: 'Validasi Gagal!',
+        html: '<ul style="text-align:left;padding-left:1.2em;font-size:13px;color:#4A5168;line-height:2">'
+            + @json($errors->all()).map(e => '<li>• ' + e + '</li>').join('')
+            + '</ul>',
+        confirmButtonText: 'Tutup',
+    });
+    @endif
+
+    // ════════════════════════════════
+    // 3. AUTO-BIND TOMBOL DELETE
+    //    Tambahkan class .btn-delete-confirm
+    //    + data-form="idForm" pada tombol hapus
+    // ════════════════════════════════
+    document.querySelectorAll('.btn-delete-confirm').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            confirmDelete(this);
+        });
+    });
+
+});
+
+// ════════════════════════════════
+// 4. DELETE KONFIRMASI
+// ════════════════════════════════
+function confirmDelete(triggerEl) {
+    const formId  = triggerEl.dataset.form;
+    const formEl  = formId ? document.getElementById(formId) : null;
+    const action  = triggerEl.dataset.action;
+    const label   = triggerEl.dataset.label  || 'Data';
+    const message = triggerEl.dataset.message || label + ' yang dihapus tidak dapat dikembalikan.';
+
+    Swal.fire({
+        ...SwalTheme,
+        icon: 'warning',
+        title: 'Hapus ' + label + '?',
+        text: message,
+        showCancelButton: true,
+        confirmButtonColor: '#DC2626',
+        confirmButtonText: '🗑️ Ya, Hapus!',
+        cancelButtonText: 'Batal',
+        focusCancel: true,
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+
+        if (formEl) {
+            formEl.submit();
+        } else if (action) {
+            // Buat hidden form DELETE dinamis
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = action;
+            f.innerHTML =
+                '<input type="hidden" name="_token" value="{{ csrf_token() }}">' +
+                '<input type="hidden" name="_method" value="DELETE">';
+            document.body.appendChild(f);
+            f.submit();
+        }
+    });
+}
+
+// ════════════════════════════════
+// 5. LOGOUT KONFIRMASI
+//    Tombol logout di topbar sudah
+//    menggunakan onclick="confirmLogout()"
+// ════════════════════════════════
+function confirmLogout() {
+    Swal.fire({
+        ...SwalTheme,
+        icon: 'question',
+        title: 'Keluar dari Sistem?',
+        text: 'Sesi kamu akan diakhiri. Yakin ingin logout?',
+        showCancelButton: true,
+        confirmButtonColor: '#DC2626',
+        confirmButtonText: 'Ya, Logout',
+        cancelButtonText: 'Batal',
+        focusCancel: true,
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            document.getElementById('globalLogoutForm').submit();
+        }
+    });
+}
+
+// ════════════════════════════════
+// 6. TOAST HELPERS (opsional)
+//    Panggil manual dari blade / JS lain:
+//    toastSuccess('Data berhasil disimpan!');
+//    toastError('Terjadi kesalahan.');
+// ════════════════════════════════
+function toastSuccess(msg) {
+    Swal.fire({
+        icon: 'success',
+        title: msg,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2500,
+        timerProgressBar: true,
+    });
+}
+function toastError(msg) {
+    Swal.fire({
+        icon: 'error',
+        title: msg,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3500,
+        timerProgressBar: true,
+    });
+}
+function toastWarning(msg) {
+    Swal.fire({
+        icon: 'warning',
+        title: msg,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+    });
+}
+</script>
+
+<script>
+    // ── LIVE CLOCK ──
+    function updateClock() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        const el = document.getElementById('live-clock');
+        if (el) el.textContent = h + ':' + m + ':' + s;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+</script>
+
+<script>
+    // ── USER DROPDOWN MENU ──
+    function toggleUserMenu() {
+        document.getElementById('userMenu').classList.toggle('hidden');
+    }
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('userMenuWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            document.getElementById('userMenu').classList.add('hidden');
+        }
+    });
 </script>
 
 @stack('scripts')

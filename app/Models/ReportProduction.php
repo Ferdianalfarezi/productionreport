@@ -37,5 +37,30 @@ class ReportProduction extends Model
         'keterangan',
         'update_by',
         'update_time',
+        'import_date',   // ← tambah
     ];
+
+    protected $casts = [
+        'import_date' => 'date',
+    ];
+
+    /**
+     * Daftar tanggal yang punya data import.
+     */
+    public static function availableImportDates(): \Illuminate\Support\Collection
+    {
+        return static::selectRaw('DISTINCT DATE(import_date) as d')
+            ->whereNotNull('import_date')
+            ->orderByRaw('d DESC')
+            ->pluck('d');
+    }
+
+    /**
+     * Tanggal import terbaru.
+     */
+    public static function latestImportDate(): ?string
+    {
+        return static::whereNotNull('import_date')
+            ->max('import_date');
+    }
 }

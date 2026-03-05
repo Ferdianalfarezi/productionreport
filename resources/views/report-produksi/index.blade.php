@@ -15,6 +15,65 @@
             @endforeach
         </select>
 
+        {{-- ── CALENDAR DATE PICKER ── --}}
+        @php
+            $calAvailSet = $availableDates->flip(); // set untuk O(1) lookup
+            $calLatest   = $availableDates->first();
+            $calIsArchive = $selectedDate && $selectedDate !== $calLatest;
+        @endphp
+        <div class="cal-wrap" id="calWrap">
+            <button class="btn-cal-trigger {{ $calIsArchive ? 'is-archive' : '' }}"
+                    type="button" onclick="toggleCal(event)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                @if($selectedDate)
+                    @if(!$calIsArchive)
+                        <span>Terbaru &mdash; {{ $selectedDateLabel }}</span>
+                    @else
+                        <span>Arsip &mdash; {{ $selectedDateLabel }}</span>
+                    @endif
+                @else
+                    <span>Pilih Tanggal</span>
+                @endif
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+
+            <div class="cal-popup" id="calPopup">
+                <div class="cal-popup-hdr">
+                    <button class="cal-nav" type="button" id="calPrev">&#8249;</button>
+                    <span class="cal-month-label" id="calMonthLabel"></span>
+                    <button class="cal-nav" type="button" id="calNext">&#8250;</button>
+                </div>
+                <div class="cal-dow-row">
+                    <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span>
+                    <span>Kam</span><span>Jum</span><span>Sab</span>
+                </div>
+                <div class="cal-grid" id="calGrid"></div>
+                @if($calLatest)
+                <div class="cal-footer">
+                    <a href="{{ route('report-produksi.index', array_merge(request()->except('import_date'), ['import_date' => $calLatest])) }}"
+                       class="cal-footer-latest">
+                        ↑ Ke data terbaru ({{ \Carbon\Carbon::parse($calLatest)->format('d/m/Y') }})
+                    </a>
+                </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Pass available dates & URL template to JS --}}
+        <script id="calData" type="application/json">
+        {
+            "dates": @json($availableDates->values()),
+            "selected": @json($selectedDate),
+            "latest": @json($calLatest),
+            "baseUrl": "{{ route('report-produksi.index') }}",
+            "currentParams": @json(request()->except('import_date'))
+        }
+        </script>
+        {{-- ── END CALENDAR ── --}}
+
         @php
             $allBreaks = collect($breakByShift[1] ?? [])->merge($breakByShift[2] ?? [])
                 ->unique('id')->sortBy('break_start');
@@ -68,7 +127,7 @@
     <div class="mesin-bar">
         <span class="line-badge">{{ $selectedLine }}</span>
         @forelse($mesins as $mesin)
-            <a href="{{ route('report-produksi.index', ['line' => $selectedLine, 'mesin' => $mesin]) }}"
+            <a href="{{ route('report-produksi.index', array_merge(request()->except('mesin'), ['line' => $selectedLine, 'mesin' => $mesin])) }}"
                class="mesin-pill {{ $selectedMesin == $mesin ? 'active' : '' }}">{{ $mesin }}</a>
         @empty
             <span style="font-size:13px;color:#999;">Belum ada mesin.</span>
@@ -305,10 +364,184 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+/* ── Calendar Date Picker ── */
+.cal-wrap {
+    position: relative;
+}
+
+.btn-cal-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.btn-cal-trigger:hover {
+    border-color: #2563EB;
+    color: #2563EB;
+}
+.btn-cal-trigger.is-archive {
+    border-color: #F59E0B;
+    background: #FFFBEB;
+    color: #92400E;
+}
+
+/* ── Popup ── */
+.cal-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 999;
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.14);
+    width: 272px;
+    padding-bottom: 4px;
+    animation: calFadeIn .15s ease;
+}
+.cal-popup.open { display: block; }
+
+@keyframes calFadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header nav ── */
+.cal-popup-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid #F3F4F6;
+}
+.cal-month-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: .01em;
+}
+.cal-nav {
+    width: 26px; height: 26px;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    color: #6B7280;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .12s;
+}
+.cal-nav:hover {
+    border-color: #2563EB;
+    color: #2563EB;
+    background: #EFF6FF;
+}
+
+/* ── Day-of-week row ── */
+.cal-dow-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 6px 10px 2px;
+}
+.cal-dow-row span {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+/* ── Grid ── */
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 2px 10px 8px;
+    gap: 2px;
+}
+.cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #D1D5DB;
+    cursor: default;
+    position: relative;
+    font-weight: 400;
+    transition: all .1s;
+}
+/* Has data */
+.cal-day.has-data {
+    color: #1E40AF;
+    font-weight: 700;
+    background: #DBEAFE;
+    cursor: pointer;
+    text-decoration: none;
+}
+.cal-day.has-data:hover {
+    background: #BFDBFE;
+    transform: scale(1.08);
+}
+/* Latest dot */
+.cal-day.is-latest::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #16A34A;
+}
+/* Selected */
+.cal-day.is-selected {
+    background: #2563EB !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,.35);
+}
+.cal-day.is-selected::after {
+    background: #fff;
+}
+
+/* ── Footer ── */
+.cal-footer {
+    border-top: 1px solid #F3F4F6;
+    padding: 7px 12px 6px;
+    text-align: center;
+}
+.cal-footer-latest {
+    font-size: 11px;
+    color: #16A34A;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color .1s;
+}
+.cal-footer-latest:hover { color: #15803D; text-decoration: underline; }
+</style>
+@endpush
+
 @push('scripts')
 <script>
     function changeLine(line) {
-        window.location.href = '{{ route("report-produksi.index") }}?line=' + encodeURIComponent(line);
+        const params = new URLSearchParams(window.location.search);
+        params.set('line', line);
+        params.delete('mesin');
+        window.location.href = '{{ route("report-produksi.index") }}?' + params.toString();
     }
     function tambahMesin() {
         const nama = prompt('Nama mesin baru untuk line: {{ $selectedLine }}');
@@ -317,11 +550,114 @@
     function toggleBreakMenu(e) {
         e.stopPropagation();
         document.getElementById('breakDropdown').classList.toggle('open');
+        document.getElementById('calPopup').classList.remove('open');
     }
-    document.addEventListener('click', function(e) {
-        const wrap = document.getElementById('breakWrap');
-        if (wrap && !wrap.contains(e.target)) {
-            document.getElementById('breakDropdown').classList.remove('open');
+
+    // ── Calendar ──────────────────────────────────────────────
+    (function () {
+        const raw    = JSON.parse(document.getElementById('calData').textContent);
+        const dates  = new Set(raw.dates);          // Set<'YYYY-MM-DD'>
+        const latest = raw.latest;
+        const sel    = raw.selected;
+        const base   = raw.baseUrl;
+        const params = raw.currentParams;
+
+        let viewYear, viewMonth;
+
+        // init: mulai dari bulan tanggal terpilih / terbaru
+        if (sel) {
+            const d = new Date(sel);
+            viewYear  = d.getFullYear();
+            viewMonth = d.getMonth();           // 0-based
+        } else {
+            const now = new Date();
+            viewYear  = now.getFullYear();
+            viewMonth = now.getMonth();
+        }
+
+        const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni',
+                           'Juli','Agustus','September','Oktober','November','Desember'];
+
+        function pad(n) { return String(n).padStart(2, '0'); }
+
+        function buildUrl(dateStr) {
+            const p = new URLSearchParams({ ...params, import_date: dateStr });
+            return base + '?' + p.toString();
+        }
+
+        function render() {
+            document.getElementById('calMonthLabel').textContent =
+                MONTHS_ID[viewMonth] + ' ' + viewYear;
+
+            const grid    = document.getElementById('calGrid');
+            grid.innerHTML = '';
+
+            // hari pertama bulan (0=Sun)
+            const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+            // total hari dalam bulan
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+            // blank cells sebelum hari pertama
+            for (let b = 0; b < firstDay; b++) {
+                const blank = document.createElement('div');
+                blank.className = 'cal-day';
+                grid.appendChild(blank);
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = viewYear + '-' + pad(viewMonth + 1) + '-' + pad(d);
+                const hasData = dates.has(dateStr);
+                const isLatest   = dateStr === latest;
+                const isSelected = dateStr === sel;
+
+                const el = hasData ? document.createElement('a') : document.createElement('div');
+                el.className = 'cal-day';
+                el.textContent = d;
+
+                if (hasData) {
+                    el.classList.add('has-data');
+                    el.href = buildUrl(dateStr);
+                    el.title = dateStr;
+                }
+                if (isLatest)   el.classList.add('is-latest');
+                if (isSelected) el.classList.add('is-selected');
+
+                grid.appendChild(el);
+            }
+        }
+
+        document.getElementById('calPrev').addEventListener('click', function (e) {
+            e.stopPropagation();
+            viewMonth--;
+            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+            render();
+        });
+        document.getElementById('calNext').addEventListener('click', function (e) {
+            e.stopPropagation();
+            viewMonth++;
+            if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+            render();
+        });
+
+        render();
+    })();
+
+    function toggleCal(e) {
+        e.stopPropagation();
+        document.getElementById('calPopup').classList.toggle('open');
+        const bd = document.getElementById('breakDropdown');
+        if (bd) bd.classList.remove('open');
+    }
+
+    document.addEventListener('click', function (e) {
+        const calWrap = document.getElementById('calWrap');
+        if (calWrap && !calWrap.contains(e.target))
+            document.getElementById('calPopup').classList.remove('open');
+
+        const breakWrap = document.getElementById('breakWrap');
+        if (breakWrap && !breakWrap.contains(e.target)) {
+            const bd = document.getElementById('breakDropdown');
+            if (bd) bd.classList.remove('open');
         }
     });
 </script>

@@ -10,14 +10,37 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PartController extends Controller
 {
-    /** Index */
-    public function index()
+    /** Index — server-side pagination + filter */
+    public function index(Request $request)
     {
-        $parts    = Part::orderBy('part_no_child')->get();
-        $lines     = Part::distinct()->whereNotNull('line')->orderBy('line')->pluck('line');
+        $query = Part::query();
+
+        // Search
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('part_no_child', 'like', "%{$search}%")
+                  ->orWhere('line', 'like', "%{$search}%")
+                  ->orWhere('category', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter line
+        if ($line = $request->get('line')) {
+            $query->where('line', $line);
+        }
+
+        // Filter category
+        if ($category = $request->get('category')) {
+            $query->where('category', $category);
+        }
+
+        $perPage = in_array($request->get('per_page'), [20, 50, 100]) ? $request->get('per_page') : 20;
+
+        $parts      = $query->orderBy('part_no_child')->paginate($perPage)->withQueryString();
+        $lines      = Part::distinct()->whereNotNull('line')->orderBy('line')->pluck('line');
         $categories = Part::distinct()->whereNotNull('category')->orderBy('category')->pluck('category');
 
-        return view('parts.index', compact('parts', 'lines', 'categories'));
+        return view('parts.index', compact('parts', 'lines', 'categories', 'perPage'));
     }
 
     /** Store */
@@ -67,10 +90,7 @@ class PartController extends Controller
         return response()->json(['success' => true, 'message' => 'Part berhasil dihapus.']);
     }
 
-    /**
-     * Import data_part_prodreport.xlsx
-     * Kolom yang diambil: F (PART_NO_CHILD), I (LINE), L (QTY_KBN)
-     */
+    /** Import data_part_prodreport.xlsx */
     public function import(Request $request)
     {
         $request->validate([
@@ -92,20 +112,14 @@ class PartController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
-                'data'    => [
-                    'imported' => $count,
-                    'skipped'  => $skipped,
-                ],
+                'data'    => ['imported' => $count, 'skipped' => $skipped],
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Import gagal: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Import data_cavity.xlsx
-     * Lookup berdasarkan PART_NO (col E) → update CATEGORY & QTY_CATEGORY di tabel parts
-     */
+    /** Import data_cavity.xlsx */
     public function importCavity(Request $request)
     {
         $request->validate([

@@ -27,6 +27,31 @@ class ReportProduksiController extends Controller
             $selectedMesin = $mesins->first();
         }
 
+        // ── Tanggal tersedia untuk arsip ──
+        // Gabungkan tanggal dari kedua tabel, unik, descending
+        $eDateList = EPlanningStock::availableImportDates();
+        $rDateList = ReportProduction::availableImportDates();
+        $availableDates = $eDateList->merge($rDateList)
+            ->unique()
+            ->sort()
+            ->values()
+            ->sortDesc()
+            ->values();
+
+        // Default: tanggal terbaru
+        $latestDate    = $availableDates->first();                            // null jika belum ada data
+        $selectedDate  = $request->get('import_date', $latestDate);          // dari query string atau default
+
+        // Pastikan tanggal yang dipilih valid (ada di daftar), fallback ke terbaru
+        if ($selectedDate && !$availableDates->contains($selectedDate)) {
+            $selectedDate = $latestDate;
+        }
+
+        // Label display (d/m/Y)
+        $selectedDateLabel = $selectedDate
+            ? \Carbon\Carbon::parse($selectedDate)->format('d/m/Y')
+            : null;
+
         // ── Break Times ──
         $breakTimes   = BreakTime::active()->get();
         $breakByShift = [
@@ -34,95 +59,15 @@ class ReportProduksiController extends Controller
             2 => $breakTimes->filter(fn($b) => is_null($b->shift) || $b->shift === 2)->values(),
         ];
 
-        // ════════════════════════════════════════════
-        // DEBUG — hapus setelah konfirmasi nilai benar
-        // ════════════════════════════════════════════
-        ([
-            'break_raw_from_db' => $breakTimes->map(fn($b) => [
-                'id'          => $b->id,
-                'break_name'  => $b->break_name,
-                'shift'       => $b->shift,
-                'break_start' => $b->break_start,         // format asli dari DB
-                'duration'    => $b->duration,
-                'is_active'   => $b->is_active,
-            ]),
-
-            'breakByShift_1' => $breakByShift[1]->map(fn($b) => [
-                'break_name'      => $b->break_name,
-                'break_start'     => $b->break_start,
-                'break_start_min' => $b->break_start_min, // hasil accessor → harusnya 600 untuk 10:00
-                'break_end_min'   => $b->break_end_min,   // harusnya 610 untuk 10:00 + 10 menit
-                'duration'        => $b->duration,
-            ]),
-
-            'breakByShift_2' => $breakByShift[2]->map(fn($b) => [
-                'break_name'      => $b->break_name,
-                'break_start'     => $b->break_start,
-                'break_start_min' => $b->break_start_min,
-                'break_end_min'   => $b->break_end_min,
-                'duration'        => $b->duration,
-            ]),
-
-            // Simulasi kalkulasi manual untuk data 08:20 - 10:45
-            'simulasi_overlap' => (function () use ($breakByShift) {
-                $start  = '08:20';
-                $finish = '10:45';
-
-                [$sh, $sm] = array_map('intval', explode(':', $start));
-                [$fh, $fm] = array_map('intval', explode(':', $finish));
-
-                $startMin  = $sh * 60 + $sm; // 500
-                $finishMin = $fh * 60 + $fm; // 645
-                if ($finishMin < $startMin) $finishMin += 1440;
-
-                $raw = $finishMin - $startMin; // 145
-
-                $detail = [];
-                $cut    = 0;
-
-                foreach ($breakByShift[1] as $br) {
-                    $bS = $br->break_start_min;
-                    $bE = $br->break_end_min;
-
-                    $overlapStart = max($startMin, $bS);
-                    $overlapEnd   = min($finishMin, $bE);
-                    $overlap      = $overlapEnd > $overlapStart ? ($overlapEnd - $overlapStart) : 0;
-                    $cut         += $overlap;
-
-                    $detail[] = [
-                        'break'        => $br->break_name,
-                        'bS'           => $bS,
-                        'bE'           => $bE,
-                        'overlapStart' => $overlapStart,
-                        'overlapEnd'   => $overlapEnd,
-                        'overlap_mnt'  => $overlap,
-                    ];
-                }
-
-                return [
-                    'input'           => "$start → $finish",
-                    'startMin'        => $startMin,
-                    'finishMin'       => $finishMin,
-                    'raw_menit'       => $raw,
-                    'total_cut_menit' => $cut,
-                    'hasil_menit'     => max(0, $raw - $cut),
-                    'hasil_jam'       => round(max(0, $raw - $cut) / 60, 4),
-                    'expected_menit'  => 135, // 2j 15m = 135 menit
-                    'break_detail'    => $detail,
-                ];
-            })(),
-        ]);
-        // ════════════════════════════════════════════
-        // END DEBUG
-        // ════════════════════════════════════════════
-
         $parts       = collect();
         $stockMap    = collect();
         $reportMap   = [];
         $summaryData = [];
 
         if ($selectedMesin) {
+            // ── Parts: filter by import_date ──
             $validPartNos = EPlanningStock::where('line', $selectedMesin)
+                ->when($selectedDate, fn($q) => $q->whereDate('import_date', $selectedDate))
                 ->pluck('part_no_child')
                 ->unique();
 
@@ -137,9 +82,10 @@ class ReportProduksiController extends Controller
         if ($parts->isNotEmpty()) {
             $partNos = $parts->pluck('part_no_child')->unique()->values();
 
-            // ── StockMap ──
+            // ── StockMap: filter by import_date ──
             $stockRows = EPlanningStock::whereIn('part_no_child', $partNos)
                 ->where('line', $selectedMesin)
+                ->when($selectedDate, fn($q) => $q->whereDate('import_date', $selectedDate))
                 ->select(
                     'part_no_child',
                     DB::raw('AVG(calc_prod) as calc_prod'),
@@ -153,10 +99,12 @@ class ReportProduksiController extends Controller
 
             $stockMap = $stockRows->keyBy('part_no_child');
 
-            // ── ReportMap ──
+            // ── ReportMap: filter by import_date ──
+            // Ambil report_id terbesar per (part_no, shift) pada import_date yang dipilih
             $latestIds = ReportProduction::whereIn('part_no', $partNos)
                 ->where('machine_no', $selectedMesin)
                 ->whereIn('shift', [1, 2])
+                ->when($selectedDate, fn($q) => $q->whereDate('import_date', $selectedDate))
                 ->select('part_no', 'shift', DB::raw('MAX(report_id) as max_id'))
                 ->groupBy('part_no', 'shift')
                 ->get();
@@ -294,8 +242,6 @@ class ReportProduksiController extends Controller
                 }
             }
 
-            // konversi menit → format HH.MM (bukan desimal)
-            // contoh: 135 menit → 2.15 | 10 menit → 0.10 | 90 menit → 1.30
             if ($totalWtActual > 0) {
                 $wtJam         = intdiv((int) $totalWtActual, 60);
                 $wtMenit       = (int) $totalWtActual % 60;
@@ -303,6 +249,7 @@ class ReportProduksiController extends Controller
             } else {
                 $wtActualHours = null;
             }
+
             $gsphPlanAvg   = $gsphPlanCount  > 0 ? round($totalGsphPlan / $gsphPlanCount, 2)        : null;
             $gsphActualAvg = $gsphActualCount > 0 ? round($totalGsphActualSum / $gsphActualCount, 2) : null;
 
@@ -318,6 +265,10 @@ class ReportProduksiController extends Controller
             $summaryData['wt_actual']      = $wtActualHours      ?? '';
         }
 
+        // lastImport: waktu upload terakhir untuk tanggal yang sedang dipilih
+        $lastImport = EPlanningStock::when($selectedDate, fn($q) => $q->whereDate('import_date', $selectedDate))
+            ->max('created_at');
+
         return view('report-produksi.index', compact(
             'lines',
             'selectedLine',
@@ -328,7 +279,11 @@ class ReportProduksiController extends Controller
             'reportMap',
             'summaryData',
             'breakByShift',
-            'breakTimes',   // ← tambah ini
+            'breakTimes',
+            'availableDates',
+            'selectedDate',
+            'selectedDateLabel',
+            'lastImport',
         ));
     }
 }

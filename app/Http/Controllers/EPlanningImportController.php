@@ -11,14 +11,18 @@ class EPlanningImportController extends Controller
 {
     public function index()
     {
-        $lastImport      = EPlanningStock::max('created_at');
-        $totalRows       = EPlanningStock::count();
+        $lastImport       = EPlanningStock::max('created_at');
+        $totalRows        = EPlanningStock::count();
         $lastReportImport = ReportProduction::max('created_at');
         $totalReportRows  = ReportProduction::count();
+
+        // Daftar tanggal tersedia untuk info di halaman import
+        $availableDates = EPlanningStock::availableImportDates();
 
         return view('e-planning.import', compact(
             'lastImport', 'totalRows',
             'lastReportImport', 'totalReportRows',
+            'availableDates',
         ));
     }
 
@@ -30,26 +34,27 @@ class EPlanningImportController extends Controller
         ], [
             'file_eplanning.required' => 'File History E-Planning wajib dipilih.',
             'file_eplanning.mimes'    => 'File harus berformat .xlsx atau .xls.',
-            'file_eplanning.max'      => 'Ukuran file maksimal 10 MB.',
+            'file_eplanning.max'      => 'Ukuran file maksimal 50 MB.',
             'file_report.mimes'       => 'File Report harus berformat .xlsx atau .xls.',
             'file_report.max'         => 'Ukuran file Report maksimal 10 MB.',
         ]);
 
         try {
-            // ─────────────────────────────────────────────────────────
-            // 1. IMPORT HISTORY E-PLANNING
-            // ─────────────────────────────────────────────────────────
-            $insertedEplanning = $this->importEPlanning($request->file('file_eplanning'));
+            // Tanggal hari ini sebagai label arsip
+            $importDate = now()->toDateString();
 
-            // ─────────────────────────────────────────────────────────
-            // 2. IMPORT REPORT PRODUCTION (opsional)
-            // ─────────────────────────────────────────────────────────
+            // ── 1. Hapus data lama untuk tanggal yang sama (replace), lalu insert baru ──
+            EPlanningStock::whereDate('import_date', $importDate)->delete();
+            $insertedEplanning = $this->importEPlanning($request->file('file_eplanning'), $importDate);
+
+            // ── 2. Import Report Production (opsional) ──
             $insertedReport = 0;
             if ($request->hasFile('file_report')) {
-                $insertedReport = $this->importReportProduction($request->file('file_report'));
+                ReportProduction::whereDate('import_date', $importDate)->delete();
+                $insertedReport = $this->importReportProduction($request->file('file_report'), $importDate);
             }
 
-            $msg = "Import berhasil! {$insertedEplanning} baris E-Planning diimpor.";
+            $msg = "Import berhasil! {$insertedEplanning} baris E-Planning diimpor untuk tanggal {$importDate}.";
             if ($insertedReport > 0) {
                 $msg .= " {$insertedReport} baris Report Production diimpor.";
             }
@@ -64,7 +69,7 @@ class EPlanningImportController extends Controller
     // ─────────────────────────────────────────────────────────────────
     // PRIVATE: Import History E-Planning
     // ─────────────────────────────────────────────────────────────────
-    private function importEPlanning($file): int
+    private function importEPlanning($file, string $importDate): int
     {
         $spreadsheet = IOFactory::load($file->getPathname());
         $sheet       = $spreadsheet->getActiveSheet();
@@ -91,8 +96,6 @@ class EPlanningImportController extends Controller
             }
         }
 
-        EPlanningStock::truncate();
-
         $inserted  = 0;
         $batchSize = 500;
         $batch     = [];
@@ -104,7 +107,6 @@ class EPlanningImportController extends Controller
 
             $get = fn($col) => isset($colMap[$col]) ? ($row[$colMap[$col]] ?? null) : null;
 
-            // Skip baris dengan JUDGEMENT = 'No Prod'
             if (strtolower(trim((string)$get('JUDGEMENT'))) === 'no prod') continue;
 
             $calcTime = null;
@@ -135,6 +137,7 @@ class EPlanningImportController extends Controller
                 'status'         => $get('STATUS'),
                 'calc_by'        => $get('CALC_BY'),
                 'calc_time'      => $calcTime,
+                'import_date'    => $importDate,   // ← simpan tanggal arsip
                 'created_at'     => $now,
                 'updated_at'     => $now,
             ];
@@ -155,13 +158,12 @@ class EPlanningImportController extends Controller
     // ─────────────────────────────────────────────────────────────────
     // PRIVATE: Import Report Production
     // ─────────────────────────────────────────────────────────────────
-    private function importReportProduction($file): int
+    private function importReportProduction($file, string $importDate): int
     {
         $spreadsheet = IOFactory::load($file->getPathname());
         $sheet       = $spreadsheet->getActiveSheet();
         $rows        = $sheet->toArray(null, true, true, false);
 
-        // Cari baris header yang mengandung 'ID' atau 'PART_NO'
         $headerRowIndex = null;
         foreach ($rows as $idx => $row) {
             if (in_array('PART_NO', $row) || in_array('ID', $row)) {
@@ -183,8 +185,6 @@ class EPlanningImportController extends Controller
             }
         }
 
-        ReportProduction::truncate();
-
         $inserted  = 0;
         $batchSize = 500;
         $batch     = [];
@@ -196,13 +196,11 @@ class EPlanningImportController extends Controller
 
             $get = fn($col) => isset($colMap[$col]) ? ($row[$colMap[$col]] ?? null) : null;
 
-            // Parse tanggal prod_date
             $prodDate = null;
             if ($raw = $get('PROD_DATE')) {
                 try { $prodDate = \Carbon\Carbon::parse($raw)->toDateString(); } catch (\Exception $e) {}
             }
 
-            // Parse update_time
             $updateTime = null;
             if ($raw = $get('UPDATE_TIME')) {
                 try { $updateTime = \Carbon\Carbon::parse($raw)->toDateTimeString(); } catch (\Exception $e) {}
@@ -237,6 +235,7 @@ class EPlanningImportController extends Controller
                 'keterangan'   => $get('KETERANGAN'),
                 'update_by'    => $get('UPDATE_BY'),
                 'update_time'  => $updateTime,
+                'import_date'  => $importDate,   // ← simpan tanggal arsip
                 'created_at'   => $now,
                 'updated_at'   => $now,
             ];

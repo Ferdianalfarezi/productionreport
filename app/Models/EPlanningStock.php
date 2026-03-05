@@ -31,22 +31,49 @@ class EPlanningStock extends Model
         'status',
         'calc_by',
         'calc_time',
+        'import_date',   // ← tambah
     ];
 
     protected $casts = [
-        'calc_time' => 'datetime',
+        'calc_time'   => 'datetime',
+        'import_date' => 'date',
     ];
 
     /**
-     * Ambil stock_store terbaru berdasarkan part_no_child + line
-     * (berdasarkan e_planning_id terbesar = data terbaru)
+     * Daftar tanggal yang punya data import (untuk date picker).
+     * Return Collection of date string 'Y-m-d', descending.
      */
-    public static function getStockStore(string $partNoChild, string $line): ?int
+    public static function availableImportDates(): \Illuminate\Support\Collection
     {
-        $record = static::where('part_no_child', $partNoChild)
-            ->where('line', $line)
-            ->orderBy('e_planning_id', 'desc')
-            ->first();
+        return static::selectRaw('DISTINCT DATE(import_date) as d')
+            ->whereNotNull('import_date')
+            ->orderByRaw('d DESC')
+            ->pluck('d');
+    }
+
+    /**
+     * Tanggal import terbaru.
+     */
+    public static function latestImportDate(): ?string
+    {
+        return static::whereNotNull('import_date')
+            ->max('import_date');
+    }
+
+    /**
+     * Ambil stock_store terbaru berdasarkan part_no_child + line
+     * dengan filter import_date opsional.
+     */
+    public static function getStockStore(string $partNoChild, string $line, ?string $importDate = null): ?int
+    {
+        $q = static::where('part_no_child', $partNoChild)
+            ->where('line', $line);
+
+        if ($importDate) {
+            $q->whereDate('import_date', $importDate);
+        }
+
+        $record = $q->orderBy('e_planning_id', 'desc')->first();
 
         return $record ? $record->stock_store : null;
     }
